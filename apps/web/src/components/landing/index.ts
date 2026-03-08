@@ -1,0 +1,18 @@
+export { Navbar } from "./Navbar";
+export type { NavbarProps, NavLink } from "./Navbar";
+export { HeroSection } from "./HeroSection";
+export type { HeroSectionProps, HeroCta } from "./HeroSection";
+export { StatsBar } from "./StatsBar";
+export type { StatsBarProps, StatItem } from "./StatsBar";
+export { CommunityNoteCard } from "./CommunityNoteCard";
+export type { CommunityNoteCardProps } from "./CommunityNoteCard";
+export { TrendingCitiesWidget } from "./TrendingCitiesWidget";
+export type { TrendingCitiesWidgetProps } from "./TrendingCitiesWidget";
+export { NewsletterSignup } from "./NewsletterSignup";
+export type { NewsletterSignupProps } from "./NewsletterSignup";
+export { CommunityNotesSection } from "./CommunityNotesSection";
+export type { CommunityNotesSectionProps } from "./CommunityNotesSection";
+export { FeatureHighlights } from "./FeatureHighlights";
+export type { FeatureHighlightsProps, FeatureItem } from "./FeatureHighlights";
+export { Footer } from "./Footer";
+export type { FooterProps, FooterLinkGroup } from "./Footer";
