@@ -1,2 +1,20 @@
 .DS_Store
 node_modules/
+
+# Env files (backend & frontend)
+.env
+.env.*
+apps/api/.env
+apps/web/.env
+
+apps/api/target/
+apps/web/.next/
+apps/web/out/
+.idea/
+.vscode/
+
+# pnpm store (local cache)
+.pnpm-store/
+
+# Local Postgres data (infra)
+infra/postgres/data/

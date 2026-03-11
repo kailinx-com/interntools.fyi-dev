@@ -1,0 +1,21 @@
+package com.interntoolsfyi.user.repository;
+
+import com.interntoolsfyi.user.model.User;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/**
+ * Spring Data JPA repository for CRUD and custom queries without writing SQL. Used to save users
+ * (register) and find a user by username.
+ */
+public interface UserRepository extends JpaRepository<User, Long> {
+  Optional<User> findByUsername(String username);
+
+  Optional<User> findByEmail(String email);
+
+  Optional<User> findByUsernameOrEmail(String username, String email);
+
+  boolean existsByUsername(String username);
+
+  boolean existsByEmail(String email);
+}
