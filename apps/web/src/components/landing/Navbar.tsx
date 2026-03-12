@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Briefcase } from "lucide-react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -64,6 +65,7 @@ export function Navbar({
 }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const isCalculatorSectionActive =
     pathname === "/calculator" || pathname.startsWith("/calculator/");
 
@@ -167,18 +169,43 @@ export function Navbar({
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link
-              href={loginHref}
-              className="text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
-            >
-              Log in
-            </Link>
-            <Button
-              asChild
-              className="bg-primary hover:bg-primary-dark dark:text-black text-white px-5 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md"
-            >
-              <Link href={signUpHref}>{signUpLabel}</Link>
-            </Button>
+            {isLoading ? (
+              <div className="h-8 w-28 rounded-md bg-muted animate-pulse" />
+            ) : isAuthenticated && user ? (
+              <>
+                <Link
+                  href="/"
+                  className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+                >
+                  Hi, {user.username}
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await logout();
+                    router.push("/");
+                  }}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={loginHref}
+                  className="text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                >
+                  Log in
+                </Link>
+                <Button
+                  asChild
+                  className="bg-primary hover:bg-primary-dark dark:text-black text-white px-5 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md"
+                >
+                  <Link href={signUpHref}>{signUpLabel}</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
