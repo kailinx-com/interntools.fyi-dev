@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { RegisterRequest } from "@/lib/auth/types";
 
 export function SignupCard(props: React.ComponentProps<typeof Card>) {
   const router = useRouter();
@@ -66,18 +67,26 @@ export function SignupCard(props: React.ComponentProps<typeof Card>) {
       email,
       password,
       role: "STUDENT" as const,
-    };
+    } satisfies RegisterRequest;
 
     try {
       setIsSubmitting(true);
-      await register(payload as any);
+      await register(payload);
       setSuccessMessage("Account created successfully. Redirecting to login...");
       router.push("/login");
-    } catch (error: any) {
-      const message =
-        error?.message ??
-        error?.response?.data?.message ??
-        "Something went wrong while creating your account.";
+    } catch (error: unknown) {
+      let message = "Something went wrong while creating your account.";
+
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        // Handle common HTTP client error shapes without using `any`.
+        const maybeResponse = error as {
+          response?: { data?: { message?: string } };
+        };
+        message = maybeResponse.response?.data?.message ?? message;
+      }
+
       setErrorMessage(message);
     } finally {
       setIsSubmitting(false);
