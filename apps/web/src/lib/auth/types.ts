@@ -8,12 +8,12 @@ export interface AuthUser {
 }
 
 export interface RegisterRequest {
-  id: bigint;
   username: string;
   email: string;
   role: UserRole;
   firstName: string;
   lastName: string;
+  password: string;
 }
 
 export interface LoginRequest {

@@ -42,12 +42,12 @@ public class AuthService {
   public AuthResponse register(RegisterRequest registerRequest) {
     /* Unique username */
     if (userRepository.existsByUsername(registerRequest.username())) {
-      throw new IllegalArgumentException("Username already exists");
+      throw new IllegalArgumentException("Username already taken");
     }
 
     /* Unique email */
     if (userRepository.existsByEmail(registerRequest.email())) {
-      throw new IllegalArgumentException("Email already exists");
+      throw new IllegalArgumentException("Email already taken");
     }
 
     /* Hash the password */
@@ -80,10 +80,10 @@ public class AuthService {
     User user =
         userRepository
             .findByUsernameOrEmail(identifier, identifier)
-            .orElseThrow(() -> new IllegalArgumentException("Username not found"));
+            .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
 
     if (!passwordEncoder.matches(loginRequest.password(), user.getPasswordHash())) {
-      throw new IllegalArgumentException("Invalid password");
+      throw new IllegalArgumentException("Invalid username or password");
     }
 
     String token =

@@ -12,11 +12,7 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
     String message = e.getMessage();
 
-    if ("Username already taken".equals(message)) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
-    }
-
-    if ("Email already taken".equals(message)) {
+    if ("Username already taken".equals(message) || "Email already taken".equals(message)) {
       return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
     }
 
