@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { PayrollConfigurationCard } from "@/components/paycheck/PayrollConfigurationCard";
 import { PayrollDetailedReceiptCard } from "@/components/paycheck/PayrollDetailedReceiptCard";
 import { PayrollHeader } from "@/components/paycheck/PayrollHeader";
 import { PayrollPeriodsTable } from "@/components/paycheck/PayrollPeriodsTable";
+import { PayrollScenarioPanel } from "@/components/paycheck/PayrollScenarioPanel";
 import { PayrollSummaryCards } from "@/components/paycheck/PayrollSummaryCards";
 import { PayrollTaxDistributionCard } from "@/components/paycheck/PayrollTaxDistributionCard";
 import { PayrollTrendsCard } from "@/components/paycheck/PayrollTrendsCard";
@@ -21,6 +23,7 @@ import {
 
 export function PayrollCalculator() {
   const router = useRouter();
+  const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<PeriodType>("weekly");
   const [config, setConfig] = useState<PaycheckConfig>(DEFAULT_PAYCHECK_CONFIG);
 
@@ -138,6 +141,10 @@ export function PayrollCalculator() {
     router.push(`/calculator/planner?monthly=${serializedMonthly}`);
   };
 
+  const handleLoadScenario = (nextConfig: PaycheckConfig) => {
+    setConfig(nextConfig);
+  };
+
   const downloadCsv = () => {
     const rows = payroll[activeTab];
     const header = "Period,Start,End,Gross,FedTax,StateTax,FICA,SDI,NetPay\n";
@@ -161,7 +168,23 @@ export function PayrollCalculator() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="mx-auto max-w-400 space-y-6 p-4 md:p-8">
-        <PayrollHeader onGoToPlanner={goToPlanner} />
+        <PayrollHeader
+          onGoToPlanner={goToPlanner}
+          savePanel={
+            token ? (
+              <PayrollScenarioPanel
+                token={token}
+                currentConfig={{ ...config, ficaMode }}
+                onLoad={handleLoadScenario}
+              />
+            ) : undefined
+          }
+          saveHint={
+            !isAuthLoading && !isAuthenticated
+              ? "Sign in to save calculator scenarios."
+              : null
+          }
+        />
 
         <div className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
           <PayrollConfigurationCard

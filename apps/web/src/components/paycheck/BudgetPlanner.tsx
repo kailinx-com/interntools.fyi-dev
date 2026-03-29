@@ -2,66 +2,37 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { BudgetChartsSection } from "@/components/paycheck/BudgetChartsSection";
 import { BudgetExpensesTable } from "@/components/paycheck/BudgetExpensesTable";
 import { BudgetPlannerEmptyState } from "@/components/paycheck/BudgetPlannerEmptyState";
 import { BudgetPlannerHeader } from "@/components/paycheck/BudgetPlannerHeader";
+import { PlannerDocumentPanel } from "@/components/paycheck/PlannerDocumentPanel";
 import { BudgetQuickAddExpenseCard } from "@/components/paycheck/BudgetQuickAddExpenseCard";
-import { type PeriodRow } from "@/lib/paycheck";
-import { formatMonthYear } from "@/lib/paycheck-format";
+import {
+  parsePlannerMonths,
+  type PlannerDetail,
+  type PlannerExpense,
+} from "@/lib/paycheck-persistence";
 
-type MonthNet = {
-  key: string;
-  label: string;
-  netPay: number;
-};
-
-type Expense = {
-  id: string;
-  name: string;
-  defaultAmount: number;
-  overrides: Record<string, number>;
-};
-
-function monthKeyFromIso(isoDate: string): string {
-  return isoDate.slice(0, 7);
-}
-
-function monthLabelFromIso(isoDate: string): string {
-  return formatMonthYear(isoDate);
-}
-
-function getOverride(expense: Expense, monthKey: string): number {
+function getOverride(expense: PlannerExpense, monthKey: string): number {
   return expense.overrides[monthKey] ?? expense.defaultAmount;
 }
 
 export function BudgetPlanner() {
   const searchParams = useSearchParams();
-  const months = useMemo<MonthNet[]>(() => {
-    try {
-      const rawMonthly = searchParams.get("monthly");
-      if (!rawMonthly) return [];
-      const monthlyRows = JSON.parse(
-        decodeURIComponent(rawMonthly),
-      ) as PeriodRow[];
-      return monthlyRows.map((row) => ({
-        key: monthKeyFromIso(row.startDate),
-        label: monthLabelFromIso(row.startDate),
-        netPay: row.netPay,
-      }));
-    } catch {
-      return [];
-    }
-  }, [searchParams]);
-
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [months, setMonths] = useState(() =>
+    parsePlannerMonths(searchParams.get("monthly")),
+  );
+  const [expenses, setExpenses] = useState<PlannerExpense[]>([]);
   const [newExpenseName, setNewExpenseName] = useState("");
   const [newExpenseAmount, setNewExpenseAmount] = useState("");
 
   const monthTotalExpenses = (monthKey: string) =>
     expenses.reduce((sum, expense) => sum + getOverride(expense, monthKey), 0);
 
-  const expenseTotal = (expense: Expense) =>
+  const expenseTotal = (expense: PlannerExpense) =>
     months.reduce((sum, month) => sum + getOverride(expense, month.key), 0);
 
   const grandTotals = useMemo(() => {
@@ -195,6 +166,11 @@ export function BudgetPlanner() {
     setExpenses([]);
   };
 
+  const handleLoadDocument = (data: PlannerDetail["data"]) => {
+    setMonths(data.months);
+    setExpenses(data.expenses);
+  };
+
   if (months.length === 0) {
     return <BudgetPlannerEmptyState />;
   }
@@ -205,6 +181,21 @@ export function BudgetPlanner() {
         <BudgetPlannerHeader
           totalNetPay={grandTotals.netPay}
           onReset={resetData}
+          savePanel={
+            token ? (
+              <PlannerDocumentPanel
+                token={token}
+                months={months}
+                expenses={expenses}
+                onLoad={handleLoadDocument}
+              />
+            ) : undefined
+          }
+          saveHint={
+            !isAuthLoading && !isAuthenticated
+              ? "Sign in to save planner documents."
+              : null
+          }
         />
 
         <BudgetQuickAddExpenseCard

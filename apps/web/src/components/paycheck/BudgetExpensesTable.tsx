@@ -15,19 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/paycheck";
-
-type MonthNet = {
-  key: string;
-  label: string;
-  netPay: number;
-};
-
-type Expense = {
-  id: string;
-  name: string;
-  defaultAmount: number;
-  overrides: Record<string, number>;
-};
+import {
+  type PlannerExpense,
+  type PlannerMonthNet,
+} from "@/lib/paycheck-persistence";
 
 type GrandTotals = {
   netPay: number;
@@ -36,11 +27,11 @@ type GrandTotals = {
 };
 
 type BudgetExpensesTableProps = {
-  months: MonthNet[];
-  expenses: Expense[];
+  months: PlannerMonthNet[];
+  expenses: PlannerExpense[];
   grandTotals: GrandTotals;
-  getOverride: (expense: Expense, monthKey: string) => number;
-  expenseTotal: (expense: Expense) => number;
+  getOverride: (expense: PlannerExpense, monthKey: string) => number;
+  expenseTotal: (expense: PlannerExpense) => number;
   monthTotalExpenses: (monthKey: string) => number;
   onSetOverride: (expenseId: string, monthKey: string, value: string) => void;
   onUpdateByPercentage: (expenseId: string, value: string) => void;

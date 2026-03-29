@@ -1,5 +1,6 @@
 "use client";
 
+import { type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 
@@ -9,11 +10,15 @@ import { formatMoney } from "@/lib/paycheck";
 type BudgetPlannerHeaderProps = {
   totalNetPay: number;
   onReset: () => void;
+  savePanel?: ReactNode;
+  saveHint?: string | null;
 };
 
 export function BudgetPlannerHeader({
   totalNetPay,
   onReset,
+  savePanel,
+  saveHint,
 }: BudgetPlannerHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
@@ -35,6 +40,10 @@ export function BudgetPlannerHeader({
             ${formatMoney(totalNetPay, 0)}
           </div>
         </div>
+        {savePanel}
+        {saveHint ? (
+          <p className="text-muted-foreground text-sm">{saveHint}</p>
+        ) : null}
         <Button variant="ghost" size="icon" onClick={onReset} aria-label="Reset planner data">
           <RefreshCcw className="size-4" />
         </Button>
