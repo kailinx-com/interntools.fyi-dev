@@ -14,10 +14,9 @@ Next.js frontend for `interntools.fyi`.
 - `/` home
 - `/calculator` paycheck calculator
 - `/calculator/planner` budget planner
-- `/housing` housing placeholder
 - `/login` login
-- `/privacy` privacy policy placeholder
 - `/signup` signup
+- `/privacy` privacy policy placeholder
 - `/terms` terms placeholder
 
 ## Getting started

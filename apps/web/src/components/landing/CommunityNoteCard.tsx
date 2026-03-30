@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export interface CommunityNoteCardProps {
   tag: string;
-  tagVariant?: "housing" | "salary" | "advice" | "default";
+  tagVariant?: "location" | "salary" | "advice" | "default";
   meta?: string;
   title: string;
   excerpt: string;
@@ -13,7 +13,7 @@ export interface CommunityNoteCardProps {
 }
 
 const tagClasses: Record<string, string> = {
-  housing: "bg-secondary text-secondary-foreground",
+  location: "bg-secondary text-secondary-foreground",
   salary: "bg-primary/10 text-primary-dark dark:text-primary",
   advice: "bg-accent text-accent-foreground",
   default: "bg-muted text-muted-foreground",

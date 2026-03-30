@@ -19,21 +19,21 @@ export interface CommunityNotesSectionProps {
 
 const defaultNotes: CommunityNoteCardProps[] = [
   {
-    tag: "Housing",
-    tagVariant: "housing",
+    tag: "Location",
+    tagVariant: "location",
     meta: "2 hours ago • Seattle, WA",
-    title: "Available: 2B/2B in Capitol Hill for Amazon Summer Interns",
+    title: "Capitol Hill vs. SLU for a summer SWE intern",
     excerpt:
-      "Looking for two roommates for a fully furnished apartment. Walking distance to the spheres. Rent is $1200/mo including utilities...",
+      "Compared two sublease options against net pay from the calculator. Shorter commute won even though rent was slightly higher...",
     href: "/signup",
   },
   {
-    tag: "Salary",
+    tag: "Offers",
     tagVariant: "salary",
     meta: "1 day ago • Menlo Park, CA",
-    title: "Meta SWE Intern Offer Breakdown (Summer '24)",
+    title: "Meta SWE intern offer breakdown (Summer '24)",
     excerpt:
-      "Just received my offer letter! Base is $8,500/mo + corporate housing stipend. Wanted to share for transparency...",
+      "Base stipend plus signing bonus—ran both through take-home and rent scenarios to see real monthly leftover...",
     href: "/signup",
   },
   {

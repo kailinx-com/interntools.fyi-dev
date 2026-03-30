@@ -4,7 +4,7 @@ import { LoginCard } from "@/components/login/LoginCard";
 export const metadata: Metadata = {
   title: "Sign in | interntools.fyi",
   description:
-    "Log in to access your intern tools, saved housing searches, and paycheck estimates.",
+    "Log in to save offers, comparisons, and paycheck scenarios on interntools.fyi.",
 };
 
 export default function LoginPage() {

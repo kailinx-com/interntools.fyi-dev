@@ -8,9 +8,9 @@ import {
 import { PageShell } from "@/components/layout/PageShell";
 
 export const metadata: Metadata = {
-  title: "interntools.fyi | Intern Housing & Paycheck Tools",
+  title: "interntools.fyi | Paycheck calculator & planner",
   description:
-    "Tools for interns to explore housing signals, estimate paycheck outcomes, and plan monthly budgets.",
+    "Estimate take-home pay and plan expenses against your net income for internships and early-career roles.",
 };
 
 export default function HomePage() {

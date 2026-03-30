@@ -2,8 +2,7 @@
 
 API base path: `/api` (e.g. `http://localhost:8080/api/...`).
 
-This backend implements the REST API defined in the root `README.md` PRD. Below are the **expected endpoints** grouped
-by feature area.
+This backend implements the REST API aligned with the root `README.md` (Offer Comparison Dashboard PRD). Below are the **expected endpoints** grouped by feature area.
 
 ---
 
@@ -60,12 +59,13 @@ Base: `/api/paycheck`
 
 ---
 
-## Housing (community layer)
+## Places & saved search results (local layer)
 
-These endpoints add local functionality on top of the external housing listings API (search/details for listings
-themselves are done on the frontend or via a separate proxy if needed).
+These endpoints persist **bookmarks and community notes** on top of **external** search/detail APIs (cities, listings, places—see PRD §9.4–9.5). Search and detail fetches from the third-party provider may live on the frontend or behind a dedicated proxy; these routes store user-specific data keyed by an external id.
 
-Base: `/api/housing`
+**Base:** `/api/places` (planned; align controllers with this prefix when implemented)
+
+> Controllers are not yet present in this repository; use this path shape for saved external results (listing/place ids), not a rental marketplace.
 
 | Method | Path                          | Auth? | Description                                       |
 |--------|-------------------------------|-------|---------------------------------------------------|
@@ -112,4 +112,3 @@ Base: `/api`
 - Error responses should follow the envelope described in the root `README.md` (e.g. `errorCode`, `message`, `fields`,
   `requestId`).
 - Paths above assume the global `/api` prefix; controller `@RequestMapping` values should reflect that.
-

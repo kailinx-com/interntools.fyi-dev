@@ -159,7 +159,6 @@ describe("Navbar", () => {
       screen.getByRole("link", { name: /interntools\s*\.fyi/i }),
     ).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Housing" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /paycheck calculator/i }),
     ).toBeInTheDocument();
@@ -173,17 +172,14 @@ describe("Navbar", () => {
     );
   });
 
-  it("marks the current non-calculator page as active from the pathname", () => {
-    mockUsePathname.mockReturnValue("/housing/san-francisco");
+  it("marks Home as active on the root path", () => {
+    mockUsePathname.mockReturnValue("/");
 
     renderNavbar();
 
-    expect(screen.getByRole("link", { name: "Housing" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
       "page",
-    );
-    expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute(
-      "aria-current",
     );
   });
 

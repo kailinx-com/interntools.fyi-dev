@@ -22,8 +22,8 @@ const defaultLinkGroups: FooterLinkGroup[] = [
   {
     title: "Product",
     links: [
-      { label: "Housing Search", href: "/housing" },
       { label: "Paycheck Calculator", href: "/calculator" },
+      { label: "Paycheck Planner", href: "/calculator/planner" },
       { label: "Community Notes", href: "/#community-notes" },
     ],
   },
@@ -31,7 +31,7 @@ const defaultLinkGroups: FooterLinkGroup[] = [
     title: "Resources",
     links: [
       { label: "Blog", href: "/" },
-      { label: "City Guides", href: "/housing" },
+      { label: "Budget tips", href: "/calculator/planner" },
       { label: "Help Center", href: "/signup" },
     ],
   },
