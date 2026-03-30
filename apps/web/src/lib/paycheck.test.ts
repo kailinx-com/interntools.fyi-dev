@@ -17,22 +17,11 @@ describe("paycheck utilities", () => {
       jest.useRealTimers();
     });
 
-    it("returns withheld when not work authorized", () => {
-      expect(
-        deriveFicaMode({
-          visaType: "F1",
-          arrivalYear: 2025,
-          isWorkAuthorized: false,
-        }),
-      ).toBe("withheld");
-    });
-
     it("returns exempt for F/J/M visas within the first 5 years", () => {
       expect(
         deriveFicaMode({
           visaType: "F1",
           arrivalYear: 2023,
-          isWorkAuthorized: true,
         }),
       ).toBe("exempt");
     });
@@ -42,7 +31,6 @@ describe("paycheck utilities", () => {
         deriveFicaMode({
           visaType: "J1",
           arrivalYear: 2021,
-          isWorkAuthorized: true,
         }),
       ).toBe("withheld");
     });
@@ -52,7 +40,6 @@ describe("paycheck utilities", () => {
         deriveFicaMode({
           visaType: "Other",
           arrivalYear: 2025,
-          isWorkAuthorized: true,
         }),
       ).toBe("withheld");
     });
@@ -107,7 +94,6 @@ describe("paycheck utilities", () => {
         residency: "resident",
         visaType: "F1",
         arrivalYear: 2025,
-        isWorkAuthorized: true,
         ficaMode: "exempt",
       } satisfies PaycheckConfig;
 
@@ -146,7 +132,6 @@ describe("paycheck utilities", () => {
         residency: "nonresident",
         visaType: "Other",
         arrivalYear: 2020,
-        isWorkAuthorized: true,
         ficaMode: "withheld",
       } satisfies PaycheckConfig;
 

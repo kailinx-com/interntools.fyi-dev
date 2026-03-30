@@ -5,17 +5,27 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-export function BudgetPlannerEmptyState() {
+type BudgetPlannerEmptyStateProps = {
+  title: string;
+  description: string;
+};
+
+export function BudgetPlannerEmptyState({
+  title,
+  description,
+}: BudgetPlannerEmptyStateProps) {
   return (
     <div className="bg-background text-foreground min-h-screen p-4 md:p-8">
       <div className="mx-auto max-w-3xl">
         <Alert>
-          <AlertTitle>No monthly payroll data found</AlertTitle>
+          <AlertTitle>{title}</AlertTitle>
           <AlertDescription className="mt-2 space-y-2">
-            <p>Run the paycheck calculator first, then open planner.</p>
-            <Button asChild size="sm">
-              <Link href="/calculator">Go to calculator</Link>
-            </Button>
+            <p>{description}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <Link href="/calculator">Go to calculator</Link>
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       </div>

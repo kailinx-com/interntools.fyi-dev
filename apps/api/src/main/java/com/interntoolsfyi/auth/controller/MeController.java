@@ -1,4 +1,4 @@
-package com.interntoolsfyi.controller;
+package com.interntoolsfyi.auth.controller;
 
 import com.interntoolsfyi.auth.dto.AuthResponse;
 import com.interntoolsfyi.auth.service.AuthService;

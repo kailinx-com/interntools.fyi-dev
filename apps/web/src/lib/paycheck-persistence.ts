@@ -1,23 +1,10 @@
 "use client";
 
 import { apiRequest } from "@/lib/auth/http";
-import { type PaycheckConfig, type PeriodRow } from "@/lib/paycheck";
-import { formatMonthYear } from "@/lib/paycheck-format";
-
-export type SaveScenarioRequest = {
-  name: string;
-  config: PaycheckConfig;
-};
-
-export type ScenarioSummary = {
-  id: number;
-  name: string;
-  createdAt: string;
-};
-
-export type ScenarioDetail = ScenarioSummary & {
-  config: PaycheckConfig;
-};
+import {
+  DEFAULT_PAYCHECK_CONFIG,
+  type PaycheckConfig,
+} from "@/lib/paycheck";
 
 export type PlannerMonthNet = {
   key: string;
@@ -33,31 +20,102 @@ export type PlannerExpense = {
 };
 
 export type PlannerDocumentPayload = {
-  months: PlannerMonthNet[];
   expenses: PlannerExpense[];
 };
 
-export type SavePlannerRequest = {
+export type SaveCalculatorConfigRequest = {
   name: string;
-  data: PlannerDocumentPayload;
+  config: PaycheckConfig;
 };
 
-export type PlannerSummary = {
+export type SavedCalculatorConfigSummary = {
+  id: number;
+  name: string;
+  createdAt: string;
+};
+
+export type SavedCalculatorConfigDetail = SavedCalculatorConfigSummary & {
+  config: PaycheckConfig;
+};
+
+export type SavePlannerDocumentRequest = {
+  name: string;
+  plannerData: PlannerDocumentPayload;
+};
+
+export type SavedPlannerDocumentSummary = {
   id: string;
   name: string;
   createdAt: string;
 };
 
-export type PlannerDetail = PlannerSummary & {
-  data: PlannerDocumentPayload;
+export type SavedPlannerDocumentDetail = {
+  id: string;
+  name: string;
+  plannerData: PlannerDocumentPayload;
 };
 
-function monthKeyFromIso(isoDate: string): string {
-  return isoDate.slice(0, 7);
+type LoadedPaycheckConfig = PaycheckConfig & {
+  isWorkAuthorized?: boolean;
+};
+
+type LoadedPlannerDocumentPayload = {
+  expenses?: PlannerExpense[];
+  months?: PlannerMonthNet[];
+};
+
+type LoadedCalculatorConfigDetail = SavedCalculatorConfigSummary & {
+  config: LoadedPaycheckConfig;
+};
+
+type LoadedPlannerDocumentDetail = {
+  id: string;
+  name: string;
+  data?: LoadedPlannerDocumentPayload | null;
+};
+
+function normalizeConfigForApi(config: PaycheckConfig): PaycheckConfig {
+  return {
+    ...config,
+    arrivalYear: Math.trunc(config.arrivalYear),
+  };
 }
 
-function monthLabelFromIso(isoDate: string): string {
-  return formatMonthYear(isoDate);
+function normalizeLoadedConfig(config: LoadedPaycheckConfig): PaycheckConfig {
+  const nextConfig = { ...config };
+  delete nextConfig.isWorkAuthorized;
+
+  return normalizeConfigForApi({
+    ...DEFAULT_PAYCHECK_CONFIG,
+    ...nextConfig,
+  });
+}
+
+export function normalizeLoadedPlannerData(
+  data: LoadedPlannerDocumentPayload | null | undefined,
+): PlannerDocumentPayload {
+  return {
+    expenses: Array.isArray(data?.expenses) ? data.expenses : [],
+  };
+}
+
+export function normalizeLoadedCalculatorConfig(
+  detail: LoadedCalculatorConfigDetail,
+): SavedCalculatorConfigDetail {
+  return {
+    ...detail,
+    config: normalizeLoadedConfig(detail.config),
+  };
+}
+
+export function normalizeLoadedPlannerDocument(
+  detail: LoadedPlannerDocumentDetail,
+): SavedPlannerDocumentDetail {
+  return {
+    id: detail.id,
+    name: detail.name,
+    plannerData: normalizeLoadedPlannerData(detail.data),
+  };
 }
 
 export function normalizeSavedName(name: string): string {
@@ -74,50 +132,86 @@ export function normalizeSavedName(name: string): string {
   return trimmed;
 }
 
-export function parsePlannerMonths(rawMonthly: string | null): PlannerMonthNet[] {
-  if (!rawMonthly) {
-    return [];
+export function formatSavedItemTimestamp(createdAt: string | null | undefined): string {
+  if (typeof createdAt !== "string") {
+    return "Saved recently";
   }
 
-  try {
-    const monthlyRows = JSON.parse(decodeURIComponent(rawMonthly)) as PeriodRow[];
+  const trimmed = createdAt.trim();
 
-    return monthlyRows.map((row) => ({
-      key: monthKeyFromIso(row.startDate),
-      label: monthLabelFromIso(row.startDate),
-      netPay: row.netPay,
-    }));
-  } catch {
-    return [];
+  if (!trimmed) {
+    return "Saved recently";
   }
+
+  let normalizedValue = trimmed;
+
+  if (/^\d+$/.test(trimmed)) {
+    const numericTimestamp = Number(trimmed);
+
+    if (!Number.isFinite(numericTimestamp)) {
+      return "Saved recently";
+    }
+
+    normalizedValue =
+      trimmed.length <= 10
+        ? String(numericTimestamp * 1000)
+        : String(numericTimestamp);
+  } else if (
+    /^\d{4}-\d{2}-\d{2}T/.test(trimmed) &&
+    !/(Z|[+-]\d{2}:\d{2})$/i.test(trimmed)
+  ) {
+    normalizedValue = `${trimmed}Z`;
+  }
+
+  const parsed = new Date(normalizedValue);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "Saved recently";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
 }
 
-export async function saveScenario(
+export async function saveCalculatorConfig(
   token: string,
-  payload: SaveScenarioRequest,
-): Promise<ScenarioDetail> {
-  return apiRequest<ScenarioDetail>("/paycheck/scenarios", {
+  payload: SaveCalculatorConfigRequest,
+): Promise<SavedCalculatorConfigDetail> {
+  const detail = await apiRequest<LoadedCalculatorConfigDetail>("/paycheck/scenarios", {
     method: "POST",
     token,
     body: {
       name: normalizeSavedName(payload.name),
-      config: payload.config,
+      config: normalizeConfigForApi(payload.config),
     },
   });
+
+  return normalizeLoadedCalculatorConfig(detail);
 }
 
-export async function listScenarios(token: string): Promise<ScenarioSummary[]> {
-  return apiRequest<ScenarioSummary[]>("/paycheck/scenarios", { token });
+export async function listCalculatorConfigs(
+  token: string,
+): Promise<SavedCalculatorConfigSummary[]> {
+  return apiRequest<SavedCalculatorConfigSummary[]>("/paycheck/scenarios", { token });
 }
 
-export async function getScenario(
+export async function getCalculatorConfig(
   token: string,
   id: number,
-): Promise<ScenarioDetail> {
-  return apiRequest<ScenarioDetail>(`/paycheck/scenarios/${id}`, { token });
+): Promise<SavedCalculatorConfigDetail> {
+  const detail = await apiRequest<LoadedCalculatorConfigDetail>(`/paycheck/scenarios/${id}`, {
+    token,
+  });
+
+  return normalizeLoadedCalculatorConfig(detail);
 }
 
-export async function deleteScenario(token: string, id: number): Promise<void> {
+export async function deleteCalculatorConfig(
+  token: string,
+  id: number,
+): Promise<void> {
   await apiRequest<void>(`/paycheck/scenarios/${id}`, {
     method: "DELETE",
     token,
@@ -126,29 +220,35 @@ export async function deleteScenario(token: string, id: number): Promise<void> {
 
 export async function savePlannerDocument(
   token: string,
-  payload: SavePlannerRequest,
-): Promise<PlannerDetail> {
-  return apiRequest<PlannerDetail>("/paycheck/planner", {
+  payload: SavePlannerDocumentRequest,
+): Promise<SavedPlannerDocumentDetail> {
+  const detail = await apiRequest<LoadedPlannerDocumentDetail>("/paycheck/planner", {
     method: "POST",
     token,
     body: {
       name: normalizeSavedName(payload.name),
-      data: payload.data,
+      data: payload.plannerData,
     },
   });
+
+  return normalizeLoadedPlannerDocument(detail);
 }
 
 export async function listPlannerDocuments(
   token: string,
-): Promise<PlannerSummary[]> {
-  return apiRequest<PlannerSummary[]>("/paycheck/planner", { token });
+): Promise<SavedPlannerDocumentSummary[]> {
+  return apiRequest<SavedPlannerDocumentSummary[]>("/paycheck/planner", { token });
 }
 
 export async function getPlannerDocument(
   token: string,
   id: string,
-): Promise<PlannerDetail> {
-  return apiRequest<PlannerDetail>(`/paycheck/planner/${id}`, { token });
+): Promise<SavedPlannerDocumentDetail> {
+  const detail = await apiRequest<LoadedPlannerDocumentDetail>(`/paycheck/planner/${id}`, {
+    token,
+  });
+
+  return normalizeLoadedPlannerDocument(detail);
 }
 
 export async function deletePlannerDocument(

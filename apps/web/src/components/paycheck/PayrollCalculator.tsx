@@ -1,16 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { LockedPaycheckSection } from "@/components/paycheck/LockedPaycheckSection";
 import { PayrollConfigurationCard } from "@/components/paycheck/PayrollConfigurationCard";
 import { PayrollDetailedReceiptCard } from "@/components/paycheck/PayrollDetailedReceiptCard";
 import { PayrollHeader } from "@/components/paycheck/PayrollHeader";
 import { PayrollPeriodsTable } from "@/components/paycheck/PayrollPeriodsTable";
-import { PayrollScenarioPanel } from "@/components/paycheck/PayrollScenarioPanel";
+import { SavedCalculatorConfigsPanel } from "@/components/paycheck/SavedCalculatorConfigsPanel";
 import { PayrollSummaryCards } from "@/components/paycheck/PayrollSummaryCards";
 import { PayrollTaxDistributionCard } from "@/components/paycheck/PayrollTaxDistributionCard";
 import { PayrollTrendsCard } from "@/components/paycheck/PayrollTrendsCard";
+import {
+  getStoredPaycheckConfig,
+  saveStoredPaycheckConfig,
+} from "@/lib/paycheck-draft";
 import {
   calculatePayroll,
   DEFAULT_PAYCHECK_CONFIG,
@@ -20,12 +25,16 @@ import {
   type PeriodType,
   STATE_TAX_DATA,
 } from "@/lib/paycheck";
+import { type SavedCalculatorConfigDetail } from "@/lib/paycheck-persistence";
 
 export function PayrollCalculator() {
   const router = useRouter();
   const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const isDetailLocked = !isAuthLoading && !isAuthenticated;
   const [activeTab, setActiveTab] = useState<PeriodType>("weekly");
-  const [config, setConfig] = useState<PaycheckConfig>(DEFAULT_PAYCHECK_CONFIG);
+  const [config, setConfig] = useState<PaycheckConfig>(
+    () => getStoredPaycheckConfig() ?? DEFAULT_PAYCHECK_CONFIG,
+  );
 
   const ficaMode = useMemo(() => deriveFicaMode(config), [config]);
   const payroll = useMemo(
@@ -134,15 +143,18 @@ export function PayrollCalculator() {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    saveStoredPaycheckConfig({ ...config, ficaMode });
+  }, [config, ficaMode]);
+
   const goToPlanner = () => {
-    const serializedMonthly = encodeURIComponent(
-      JSON.stringify(payroll.monthly),
-    );
-    router.push(`/calculator/planner?monthly=${serializedMonthly}`);
+    saveStoredPaycheckConfig({ ...config, ficaMode });
+    router.push("/calculator/planner");
   };
 
-  const handleLoadScenario = (nextConfig: PaycheckConfig) => {
+  const handleLoadConfig = ({ config: nextConfig }: SavedCalculatorConfigDetail) => {
     setConfig(nextConfig);
+    saveStoredPaycheckConfig(nextConfig);
   };
 
   const downloadCsv = () => {
@@ -167,31 +179,32 @@ export function PayrollCalculator() {
 
   return (
     <div className="bg-background text-foreground min-h-screen">
-      <div className="mx-auto max-w-400 space-y-6 p-4 md:p-8">
+      <div className="mx-auto space-y-6 p-4 md:p-8">
         <PayrollHeader
           onGoToPlanner={goToPlanner}
-          savePanel={
-            token ? (
-              <PayrollScenarioPanel
-                token={token}
-                currentConfig={{ ...config, ficaMode }}
-                onLoad={handleLoadScenario}
-              />
-            ) : undefined
-          }
-          saveHint={
-            !isAuthLoading && !isAuthenticated
-              ? "Sign in to save calculator scenarios."
-              : null
-          }
         />
 
-        <div className="grid items-start gap-6 lg:grid-cols-[380px_1fr]">
+        <div className="grid items-start gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
           <PayrollConfigurationCard
             config={config}
             states={states}
             ficaMode={ficaMode}
             onConfigChange={setConfigValue}
+            savedPlansPanel={
+              token ? (
+                <SavedCalculatorConfigsPanel
+                  token={token}
+                  currentConfig={{ ...config, ficaMode }}
+                  onLoad={handleLoadConfig}
+                  manageButtonLabel="Manage configs"
+                />
+              ) : undefined
+            }
+            savedPlansHint={
+              !isAuthLoading && !isAuthenticated
+                ? "Sign in to save complete paycheck plans."
+                : null
+            }
           />
 
           <div className="space-y-6">
@@ -201,24 +214,33 @@ export function PayrollCalculator() {
               netTotal={payroll.summary.netTotal}
             />
 
-            <PayrollPeriodsTable
-              activeTab={activeTab}
-              rows={activeRows}
-              totals={totals}
-              onTabChange={setActiveTab}
-              onExportCsv={downloadCsv}
-            />
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <PayrollTaxDistributionCard taxPieData={taxPieData} />
-              <PayrollDetailedReceiptCard
-                breakdown={breakdown}
-                totalGross={payroll.summary.totalGross}
-                netTotal={payroll.summary.netTotal}
+            <LockedPaycheckSection
+              locked={isDetailLocked}
+              title="Log in to view paycheck details"
+              description="Sign in to unlock period tables, tax breakdowns, and payroll trend charts."
+              className="rounded-3xl"
+              contentClassName="space-y-6"
+              overlayClassName="items-start pt-8"
+            >
+              <PayrollPeriodsTable
+                activeTab={activeTab}
+                rows={activeRows}
+                totals={totals}
+                onTabChange={setActiveTab}
+                onExportCsv={downloadCsv}
               />
-            </div>
 
-            <PayrollTrendsCard historyData={historyData} />
+              <div className="grid gap-6 md:grid-cols-2">
+                <PayrollTaxDistributionCard taxPieData={taxPieData} />
+                <PayrollDetailedReceiptCard
+                  breakdown={breakdown}
+                  totalGross={payroll.summary.totalGross}
+                  netTotal={payroll.summary.netTotal}
+                />
+              </div>
+
+              <PayrollTrendsCard historyData={historyData} />
+            </LockedPaycheckSection>
           </div>
         </div>
 

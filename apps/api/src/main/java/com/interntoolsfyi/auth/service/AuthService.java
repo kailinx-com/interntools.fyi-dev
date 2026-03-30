@@ -6,9 +6,9 @@ import com.interntoolsfyi.auth.dto.LoginResponse;
 import com.interntoolsfyi.auth.dto.RegisterRequest;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Controller for authentication that decides what should happen when someone registers or logs in.

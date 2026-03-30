@@ -43,7 +43,8 @@ class SecurityConfigIntegrationTest {
   @DisplayName("public endpoints stay reachable without authentication")
   void publicEndpointsStayReachableWithoutAuthentication() throws Exception {
     mockMvc.perform(get("/")).andExpect(status().isOk());
-    mockMvc.perform(get("/home")).andExpect(status().isOk());
+    mockMvc.perform(get("/home")).andExpect(status().isNotFound());
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isOk());
 
     mockMvc
         .perform(
@@ -76,15 +77,15 @@ class SecurityConfigIntegrationTest {
   }
 
   @Test
-  @DisplayName("protected endpoints return unauthorized without authentication")
-  void protectedEndpointsReturnUnauthorizedWithoutAuthentication() throws Exception {
+  @DisplayName("protected endpoints that require a current user return unauthorized without authentication")
+  void currentUserEndpointsReturnUnauthorizedWithoutAuthentication() throws Exception {
     mockMvc.perform(get("/me")).andExpect(status().isUnauthorized());
-    mockMvc.perform(post("/auth/logout")).andExpect(status().isUnauthorized());
   }
 
   @Test
-  @DisplayName("protected endpoints return unauthorized for malformed bearer tokens")
-  void protectedEndpointsReturnUnauthorizedForMalformedBearerTokens() throws Exception {
+  @DisplayName("malformed bearer tokens are rejected for current-user endpoints while logout stays public")
+  void malformedBearerTokensAreRejectedForCurrentUserEndpointsWhileLogoutStaysPublic()
+      throws Exception {
     mockMvc
         .perform(get("/me").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
         .andExpect(status().isUnauthorized())
@@ -92,7 +93,7 @@ class SecurityConfigIntegrationTest {
 
     mockMvc
         .perform(post("/auth/logout").header(HttpHeaders.AUTHORIZATION, "Basic abc123"))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isOk());
   }
 
   @Test
