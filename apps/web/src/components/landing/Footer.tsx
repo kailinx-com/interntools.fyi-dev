@@ -59,7 +59,7 @@ export function Footer({
     { type: "email", href: "mailto:hello@interntools.fyi" },
   ],
   linkGroups = defaultLinkGroups,
-  copyright = "© 2024 interntools.fyi. All rights reserved.",
+  copyright,
   bottomLine = (
     <span className="flex items-center gap-1">
       Made with <Heart className="inline size-3.5 text-primary fill-primary" />
@@ -68,6 +68,10 @@ export function Footer({
   ),
   className,
 }: FooterProps) {
+  const year = new Date().getFullYear();
+  const copyrightLine =
+    copyright ?? `Copyright ${year} interntools.fyi. All rights reserved.`;
+
   return (
     <footer
       className={cn(
@@ -123,7 +127,7 @@ export function Footer({
           ))}
         </div>
         <div className="border-t border-border pt-8 flex flex-row justify-between items-center">
-          <p className="text-sm text-muted-foreground">{copyright}</p>
+          <p className="text-sm text-muted-foreground">{copyrightLine}</p>
           {bottomLine && (
             <div className="flex space-x-6 text-sm text-muted-foreground">
               {bottomLine}
