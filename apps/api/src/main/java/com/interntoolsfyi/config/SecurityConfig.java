@@ -37,16 +37,7 @@ public class SecurityConfig {
         .exceptionHandling(
             exceptions ->
                 exceptions.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-        .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers("/auth/register", "/auth/login")
-                    .permitAll()
-                    .requestMatchers("/auth/logout", "/me")
-                    .authenticated()
-                    .requestMatchers("/h2-console", "/h2-console/**")
-                    .permitAll()
-                    .anyRequest()
-                    .permitAll())
+        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
         .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
     return http.build();

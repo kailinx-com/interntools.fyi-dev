@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Banknote } from "lucide-react";
+import { Calculator, PieChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface HeroCta {
@@ -21,26 +21,26 @@ export interface HeroSectionProps {
 
 const defaultCtas: HeroCta[] = [
   {
-    title: "Search Housing",
-    description: "Find sublets & roommates",
-    href: "/housing",
-    icon: <Home className="size-8 text-primary mb-3" />,
+    title: "Paycheck Calculator",
+    description: "Tax & take-home by pay period",
+    href: "/calculator",
+    icon: <Calculator className="size-8 text-primary mb-3" />,
     variant: "primary",
   },
   {
-    title: "Estimate Paycheck",
-    description: "Calculate tax & take-home",
-    href: "/calculator",
-    icon: <Banknote className="size-8 text-primary mb-3" />,
+    title: "Paycheck Planner",
+    description: "Plan expenses vs net income",
+    href: "/calculator/planner",
+    icon: <PieChart className="size-8 text-primary mb-3" />,
     variant: "secondary",
   },
 ];
 
 export function HeroSection({
   badge = "Updated for Summer 2026",
-  headline = "Find your place.",
-  headlineHighlight = "Know your worth.",
-  subtext = "The ultimate toolkit for U.S. interns. Connect with safe housing options and get transparent paycheck estimates in seconds.",
+  headline = "Know your paycheck.",
+  headlineHighlight = "Plan your budget.",
+  subtext = "Estimate take-home pay and plan spending against your net income—built for interns and early-career roles.",
   ctas = defaultCtas,
   className,
 }: HeroSectionProps) {

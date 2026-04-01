@@ -21,9 +21,9 @@ export interface FeatureHighlightsProps {
 const defaultFeatures: FeatureItem[] = [
   {
     icon: ShieldCheck,
-    title: "Verified Listings",
+    title: "Decision-ready comparisons",
     description:
-      "Every housing post is vetted by university email verification to keep scammers out.",
+      "Combine pay, rent, commute, and notes so headline salary is not the only number that matters.",
   },
   {
     icon: Calculator,

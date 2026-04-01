@@ -16,14 +16,18 @@ export function PayrollHeader({ onGoToPlanner }: PayrollHeaderProps) {
           <Calculator className="text-primary size-6" />
         </div>
         <div>
-          <p className="text-muted-foreground text-sm">Payroll Estimation & Planning</p>
+          <p className="text-muted-foreground text-sm">
+            Payroll estimation with unified saved plans
+          </p>
         </div>
       </div>
-      <Button onClick={onGoToPlanner} variant="secondary" className="gap-2">
-        <Wallet className="size-4" />
-        Budget Planner
-        <ArrowRight className="size-4" />
-      </Button>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button onClick={onGoToPlanner} variant="secondary" className="gap-2">
+          <Wallet className="size-4" />
+          Budget Planner
+          <ArrowRight className="size-4" />
+        </Button>
+      </div>
     </header>
   );
 }

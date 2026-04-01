@@ -41,12 +41,8 @@ class HomeControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("GET /home returns the home payload without authentication")
-  void homeEndpointReturnsHomePayloadWithoutAuthentication() throws Exception {
-    mockMvc
-        .perform(get("/home"))
-        .andExpect(status().isOk())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.message").value("interntools API home"));
+  @DisplayName("GET /home returns not found because only the root endpoint is mapped")
+  void homeEndpointReturnsNotFoundBecauseOnlyTheRootEndpointIsMapped() throws Exception {
+    mockMvc.perform(get("/home")).andExpect(status().isNotFound());
   }
 }

@@ -1,19 +1,22 @@
 "use client";
 
+import { type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCcw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/paycheck";
 
 type BudgetPlannerHeaderProps = {
   totalNetPay: number;
-  onReset: () => void;
+  savedPlansPanel?: ReactNode;
+  savedPlansHint?: string | null;
 };
 
 export function BudgetPlannerHeader({
   totalNetPay,
-  onReset,
+  savedPlansPanel,
+  savedPlansHint,
 }: BudgetPlannerHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
@@ -25,19 +28,22 @@ export function BudgetPlannerHeader({
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Budget Planner</h1>
-          <p className="text-muted-foreground text-sm">Plan monthly expenses and savings</p>
+          <p className="text-muted-foreground text-sm">
+            Plan monthly expenses against your saved paycheck setup
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="text-right">
+        {savedPlansPanel}
+        <div className="text-left sm:text-right">
           <div className="text-muted-foreground text-xs uppercase">Total Net Pay</div>
-          <div className="text-xl font-bold text-emerald-500">
+          <div className="text-xl leading-none font-bold text-emerald-500">
             ${formatMoney(totalNetPay, 0)}
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onReset} aria-label="Reset planner data">
-          <RefreshCcw className="size-4" />
-        </Button>
+        {savedPlansHint ? (
+          <p className="text-muted-foreground text-sm">{savedPlansHint}</p>
+        ) : null}
       </div>
     </header>
   );

@@ -1,9 +1,15 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { type ReactNode, useState } from "react";
+import { ChevronDown, Settings } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { type FicaMode, type PaycheckConfig } from "@/lib/paycheck";
 
 type ConfigChangeHandler = <K extends keyof PaycheckConfig>(
@@ -26,10 +31,17 @@ type PayrollConfigurationCardProps = {
   states: Array<{ value: string; label: string }>;
   ficaMode: FicaMode;
   onConfigChange: ConfigChangeHandler;
+  savedPlansPanel?: ReactNode;
+  savedPlansHint?: string | null;
 };
 
 function parseNumber(value: string, fallback = 0): number {
   const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseInteger(value: string, fallback = 0): number {
+  const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -38,9 +50,13 @@ export function PayrollConfigurationCard({
   states,
   ficaMode,
   onConfigChange,
+  savedPlansPanel,
+  savedPlansHint,
 }: PayrollConfigurationCardProps) {
+  const [isTaxStatusOpen, setIsTaxStatusOpen] = useState(false);
+
   return (
-    <Card>
+    <Card className="gap-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Settings className="size-4" />
@@ -48,6 +64,15 @@ export function PayrollConfigurationCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {savedPlansPanel || savedPlansHint ? (
+          <div className="space-y-3">
+            {savedPlansHint ? (
+              <p className="text-muted-foreground text-sm">{savedPlansHint}</p>
+            ) : null}
+            {savedPlansPanel}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="start-date">Start Date</Label>
@@ -157,57 +182,61 @@ export function PayrollConfigurationCard({
           </div>
         </div>
 
-        <div className="space-y-4 rounded-lg border p-4">
-          <h3 className="font-semibold">Tax Status</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Visa Type</Label>
-              <Select
-                value={config.visaType}
-                onValueChange={(value: "F1" | "J1" | "M1" | "Other") =>
-                  onConfigChange("visaType", value)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="F1">F-1 Student</SelectItem>
-                  <SelectItem value="J1">J-1 Exchange</SelectItem>
-                  <SelectItem value="M1">M-1 Vocational</SelectItem>
-                  <SelectItem value="Other">Other / Citizen</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="arrival-year">Arrival Year</Label>
-              <Input
-                id="arrival-year"
-                type="number"
-                value={config.arrivalYear}
-                onChange={(e) =>
-                  onConfigChange("arrivalYear", parseNumber(e.target.value))
-                }
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <Label htmlFor="work-auth">Work Authorized</Label>
-            <Switch
-              id="work-auth"
-              checked={config.isWorkAuthorized}
-              onCheckedChange={(checked) =>
-                onConfigChange("isWorkAuthorized", Boolean(checked))
-              }
+        <Collapsible
+          open={isTaxStatusOpen}
+          onOpenChange={setIsTaxStatusOpen}
+          className="rounded-lg border"
+        >
+          <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+            <span className="font-semibold">Tax Status</span>
+            <ChevronDown
+              className={`text-muted-foreground size-4 transition-transform ${
+                isTaxStatusOpen ? "rotate-180" : ""
+              }`}
             />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground text-sm">FICA Status</span>
-            <Badge variant={ficaMode === "exempt" ? "secondary" : "outline"}>
-              {ficaMode.toUpperCase()}
-            </Badge>
-          </div>
-        </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 px-4 pb-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Visa Type</Label>
+                <Select
+                  value={config.visaType}
+                  onValueChange={(value: "F1" | "J1" | "M1" | "Other") =>
+                    onConfigChange("visaType", value)
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="F1">F-1 Student</SelectItem>
+                    <SelectItem value="J1">J-1 Exchange</SelectItem>
+                    <SelectItem value="M1">M-1 Vocational</SelectItem>
+                    <SelectItem value="Other">Other / Citizen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="arrival-year">Arrival Year</Label>
+                <Input
+                  id="arrival-year"
+                  type="number"
+                  step="1"
+                  value={config.arrivalYear}
+                  onChange={(e) =>
+                    onConfigChange("arrivalYear", parseInteger(e.target.value))
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-sm">FICA Status</span>
+              <Badge variant={ficaMode === "exempt" ? "secondary" : "outline"}>
+                {ficaMode.toUpperCase()}
+              </Badge>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );

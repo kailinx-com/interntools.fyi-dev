@@ -17,7 +17,7 @@ export interface NewsletterSignupProps {
 
 export function NewsletterSignup({
   title = "Get Weekly Updates",
-  description = "New housing drops and salary data sent to your inbox.",
+  description = "Product updates on offer comparison features and paycheck tools.",
   placeholder = "Your email",
   submitLabel,
   onSubmit,

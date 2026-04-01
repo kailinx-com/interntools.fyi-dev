@@ -36,7 +36,6 @@ export interface NavbarProps {
 
 const defaultLinks: NavLink[] = [
   { label: "Home", href: "/" },
-  { label: "Housing", href: "/housing" },
   { label: "Paycheck Calculator", href: "/calculator" },
 ];
 

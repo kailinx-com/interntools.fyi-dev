@@ -59,8 +59,14 @@ public class User {
     this.email = email;
     this.passwordHash = passwordHash;
     this.role = role;
-    this.createdAt = Instant.now();
     this.firstName = firstName;
     this.lastName = lastName;
+  }
+
+  @PrePersist
+  void onCreate() {
+    if (createdAt == null) {
+      createdAt = Instant.now();
+    }
   }
 }

@@ -31,7 +31,6 @@ export type PaycheckConfig = {
   residency: Residency;
   visaType: VisaType;
   arrivalYear: number;
-  isWorkAuthorized: boolean;
   ficaMode: FicaMode;
 };
 
@@ -74,7 +73,6 @@ export const DEFAULT_PAYCHECK_CONFIG: PaycheckConfig = {
   residency: "nonresident",
   visaType: "F1",
   arrivalYear: 2021,
-  isWorkAuthorized: true,
   ficaMode: "exempt",
 };
 
@@ -537,9 +535,8 @@ export const STATE_TAX_DATA: Record<string, StateTaxData> = {
 };
 
 export function deriveFicaMode(
-  config: Pick<PaycheckConfig, "visaType" | "arrivalYear" | "isWorkAuthorized">,
+  config: Pick<PaycheckConfig, "visaType" | "arrivalYear">,
 ): FicaMode {
-  if (!config.isWorkAuthorized) return "withheld";
   if (["F1", "J1", "M1"].includes(config.visaType)) {
     const yearsInUs = new Date().getUTCFullYear() - config.arrivalYear;
     return yearsInUs < 5 ? "exempt" : "withheld";
