@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Briefcase } from "lucide-react";
+import { Briefcase, LayoutDashboard, LogOut, Settings } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -36,6 +43,7 @@ export interface NavbarProps {
 
 const defaultLinks: NavLink[] = [
   { label: "Home", href: "/" },
+  { label: "Offers", href: "/offers" },
   { label: "Paycheck Calculator", href: "/calculator" },
 ];
 
@@ -49,6 +57,24 @@ const calculatorMenuLinks = [
     label: "Paycheck Planner",
     href: "/calculator/planner",
     description: "Plan expenses against your net income.",
+  },
+];
+
+const offerMenuLinks = [
+  {
+    label: "Offers Feed",
+    href: "/offers",
+    description: "Browse community offer posts and comparisons.",
+  },
+  {
+    label: "Compare Offers",
+    href: "/offers/compare",
+    description: "Compare your internship offers side by side.",
+  },
+  {
+    label: "Post an Update",
+    href: "/offers/submit",
+    description: "Share your offer outcome anonymously.",
   },
 ];
 
@@ -67,6 +93,8 @@ export function Navbar({
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const isCalculatorSectionActive =
     pathname === "/calculator" || pathname.startsWith("/calculator/");
+  const isOffersSectionActive =
+    pathname === "/offers" || pathname.startsWith("/offers/");
 
   const isLinkActive = (href: string, explicitActive?: boolean) => {
     if (explicitActive !== undefined) return explicitActive;
@@ -99,6 +127,54 @@ export function Navbar({
 
           <div className="flex items-center gap-1">
             {links.map((link) => {
+              if (link.href === "/offers") {
+                return (
+                  <NavigationMenu key={link.label} viewport={false}>
+                    <NavigationMenuList>
+                      <NavigationMenuItem>
+                        <NavigationMenuTrigger
+                          onClick={(event) => {
+                            event.preventDefault();
+                            router.push(link.href);
+                          }}
+                          className={cn(
+                            navigationMenuTriggerStyle(),
+                            "bg-transparent",
+                            isOffersSectionActive
+                              ? "text-primary"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {link.label}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent className="w-auto min-w-88 p-1">
+                          {offerMenuLinks.map((item) => {
+                            const itemActive =
+                              pathname === item.href ||
+                              (item.href !== "/offers" && pathname.startsWith(`${item.href}/`));
+                            return (
+                              <NavigationMenuLink
+                                key={item.href}
+                                asChild
+                                active={itemActive}
+                                className="rounded-md p-3"
+                              >
+                                <Link href={item.href}>
+                                  <div className="font-medium">{item.label}</div>
+                                  <p className="text-muted-foreground mt-0.5 text-xs leading-snug">
+                                    {item.description}
+                                  </p>
+                                </Link>
+                              </NavigationMenuLink>
+                            );
+                          })}
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    </NavigationMenuList>
+                  </NavigationMenu>
+                );
+              }
+
               if (link.href === "/calculator") {
                 return (
                   <NavigationMenu key={link.label} viewport={false}>
@@ -171,24 +247,35 @@ export function Navbar({
             {isLoading ? (
               <div className="h-8 w-28 rounded-md bg-muted animate-pulse" />
             ) : isAuthenticated && user ? (
-              <>
-                <Link
-                  href="/"
-                  className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-                >
-                  Hi, {user.username}
-                </Link>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    await logout();
-                    router.push("/");
-                  }}
-                >
-                  Logout
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={cn(navigationMenuTriggerStyle(), "bg-transparent font-medium")}>
+                    Hi, {user.username}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem asChild>
+                    <Link href="/me" className="flex items-center gap-2">
+                      <LayoutDashboard className="size-4 text-muted-foreground shrink-0" />
+                      My Account
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="flex items-center gap-2">
+                      <Settings className="size-4 text-muted-foreground shrink-0" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive flex items-center gap-2"
+                    onSelect={async () => { await logout(); router.push("/"); }}
+                  >
+                    <LogOut className="size-4 shrink-0" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Link

@@ -18,7 +18,7 @@ import {
   getStoredSelectedPlannerDocument,
   saveStoredSelectedPlannerDocument,
   type StoredSelectedPlannerDocument,
-} from "@/lib/paycheck-draft";
+} from "@/lib/paycheck/draft";
 import {
   deletePlannerDocument,
   formatSavedItemTimestamp,
@@ -28,7 +28,7 @@ import {
   type PlannerExpense,
   type SavedPlannerDocumentDetail,
   type SavedPlannerDocumentSummary,
-} from "@/lib/paycheck-persistence";
+} from "@/lib/paycheck/api";
 
 type PlannerDocumentsPanelProps = {
   token: string;

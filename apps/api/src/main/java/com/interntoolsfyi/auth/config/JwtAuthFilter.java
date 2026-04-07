@@ -15,10 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Runs before controller method, it gets the raw HTTP request first, so it can: reject or allow the
- * request.
- */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 

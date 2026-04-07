@@ -1,38 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Calculator, GitCompare, PieChart, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+export interface QuickTool {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  href: string;
+}
 
 export interface TrendingCitiesWidgetProps {
   title?: string;
-  cities?: string[];
-  topDestinationImage?: string;
-  topDestinationTitle?: string;
-  topDestinationSubtitle?: string;
+  tools?: QuickTool[];
   className?: string;
 }
 
-const defaultCities = [
-  "San Francisco",
-  "New York",
-  "Seattle",
-  "Austin",
-  "Boston",
-  "Chicago",
+const defaultTools: QuickTool[] = [
+  {
+    icon: <Calculator className="size-4 text-primary" />,
+    label: "Paycheck Calculator",
+    description: "Estimate take-home pay",
+    href: "/calculator",
+  },
+  {
+    icon: <PieChart className="size-4 text-primary" />,
+    label: "Paycheck Planner",
+    description: "Budget vs net income",
+    href: "/calculator/planner",
+  },
+  {
+    icon: <GitCompare className="size-4 text-primary" />,
+    label: "Compare Offers",
+    description: "Side-by-side analysis",
+    href: "/offers/compare",
+  },
+  {
+    icon: <FileText className="size-4 text-primary" />,
+    label: "Post an Update",
+    description: "Share your offer outcome",
+    href: "/offers/submit",
+  },
 ];
 
 export function TrendingCitiesWidget({
-  title = "Trending Cities",
-  cities = defaultCities,
-  topDestinationImage = "https://images.unsplash.com/photo-1501594907352-04cda38eb297?w=400&h=160&fit=crop",
-  topDestinationTitle = "Top Destination",
-  topDestinationSubtitle = "San Francisco Bay Area",
+  title = "Quick Tools",
+  tools = defaultTools,
   className,
 }: TrendingCitiesWidgetProps) {
-  const [selected, setSelected] = useState<string | null>(null);
-
   return (
     <div
       className={cn(
@@ -40,46 +56,26 @@ export function TrendingCitiesWidget({
         className,
       )}
     >
-      <div className="flex items-center gap-2 mb-6">
-        <TrendingUp className="size-5 text-primary" />
-        <h3 className="font-bold text-foreground">{title}</h3>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {cities.map((city) => (
-          <button
-            key={city}
-            type="button"
-            onClick={() => setSelected(selected === city ? null : city)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
-              "bg-primary/5 dark:bg-primary/10 text-primary",
-              "hover:bg-primary dark:hover:bg-secondary-foreground dark:hover:text-secondary",
-              "border-border",
-              selected === city && "bg-primary text-primary-foreground border-primary",
-            )}
+      <h3 className="font-bold text-foreground mb-4">{title}</h3>
+      <div className="space-y-1">
+        {tools.map((tool) => (
+          <Link
+            key={tool.label}
+            href={tool.href}
+            className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 hover:bg-accent transition-colors group"
           >
-            {city}
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 pt-6 border-t border-border">
-        <div className="h-40 w-full rounded-lg bg-secondary dark:bg-muted relative overflow-hidden group">
-          <Image
-            src={topDestinationImage}
-            alt={topDestinationTitle}
-            fill
-            className="object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-            sizes="(max-width: 768px) 100vw, 400px"
-          />
-          <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent flex items-end p-4">
-            <div>
-              <p className="text-white font-bold text-sm">
-                {topDestinationTitle}
-              </p>
-              <p className="text-white/80 text-xs">{topDestinationSubtitle}</p>
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                {tool.icon}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground leading-tight">{tool.label}</p>
+                <p className="text-xs text-muted-foreground">{tool.description}</p>
+              </div>
             </div>
-          </div>
-        </div>
+            <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+          </Link>
+        ))}
       </div>
     </div>
   );

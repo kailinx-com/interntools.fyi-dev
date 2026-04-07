@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -44,14 +45,17 @@ class PaycheckControllerIntegrationTest {
   @Autowired private PaycheckSavedPlanRepository paycheckSavedPlanRepository;
   @Autowired private JwtService jwtService;
   @Autowired private WebApplicationContext webApplicationContext;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   private MockMvc mockMvc;
 
   @BeforeEach
   void setUp() {
+    jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
     paycheckSavedPlanRepository.deleteAll();
     paycheckConfigRepository.deleteAll();
     userRepository.deleteAll();
+    jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
   }
@@ -218,7 +222,9 @@ class PaycheckControllerIntegrationTest {
     void returnsUnauthorizedWhenTheTokenIsValidButTheUserNoLongerExists() throws Exception {
       User user = createUser("deleted-user");
       String authHeader = authHeaderFor(user);
+      jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
       userRepository.deleteAll();
+      jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
 
       mockMvc
           .perform(get("/paycheck/scenarios").header(HttpHeaders.AUTHORIZATION, authHeader))

@@ -24,13 +24,14 @@ const defaultLinkGroups: FooterLinkGroup[] = [
     links: [
       { label: "Paycheck Calculator", href: "/calculator" },
       { label: "Paycheck Planner", href: "/calculator/planner" },
-      { label: "Community Notes", href: "/#community-notes" },
+      { label: "Compare Offers", href: "/offers/compare" },
+      { label: "Offers Feed", href: "/offers" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "Blog", href: "/" },
+      { label: "Post an Update", href: "/offers/submit" },
       { label: "Budget tips", href: "/calculator/planner" },
       { label: "Help Center", href: "/signup" },
     ],

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calculator, PieChart } from "lucide-react";
+import { ArrowRight, Calculator, GitCompare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface HeroCta {
@@ -16,6 +16,7 @@ export interface HeroSectionProps {
   headlineHighlight?: string;
   subtext?: string;
   ctas?: HeroCta[];
+  feedHref?: string;
   className?: string;
 }
 
@@ -28,20 +29,21 @@ const defaultCtas: HeroCta[] = [
     variant: "primary",
   },
   {
-    title: "Paycheck Planner",
-    description: "Plan expenses vs net income",
-    href: "/calculator/planner",
-    icon: <PieChart className="size-8 text-primary mb-3" />,
+    title: "Compare Offers",
+    description: "Side-by-side offer analysis",
+    href: "/offers/compare",
+    icon: <GitCompare className="size-8 text-primary mb-3" />,
     variant: "secondary",
   },
 ];
 
 export function HeroSection({
-  badge = "Updated for Summer 2026",
-  headline = "Know your paycheck.",
-  headlineHighlight = "Plan your budget.",
-  subtext = "Estimate take-home pay and plan spending against your net income—built for interns and early-career roles.",
+  badge = "Paycheck tools & offer comparison",
+  headline = "Know your offer.",
+  headlineHighlight = "Plan your paycheck.",
+  subtext = "Compare internship offers side-by-side, estimate take-home pay, and plan your budget — built for interns and early-career roles.",
   ctas = defaultCtas,
+  feedHref = "/offers",
   className,
 }: HeroSectionProps) {
   return (
@@ -81,34 +83,41 @@ export function HeroSection({
 
         {/* Hero CTAs */}
         <div className="flex flex-row justify-center items-center gap-4 max-w-lg mx-auto">
-          {ctas.map((cta) => {
-            return (
-              <Link
-                key={cta.title}
-                href={cta.href}
+          {ctas.map((cta) => (
+            <Link
+              key={cta.title}
+              href={cta.href}
+              className={cn(
+                "group w-1/2 rounded-xl shadow-lg hover:shadow-xl transition-all border border-border",
+                "bg-white dark:bg-neutral-surface-dark p-1",
+              )}
+            >
+              <div
                 className={cn(
-                  "group w-1/2 rounded-xl shadow-lg hover:shadow-xl transition-all border border-border",
-                  "bg-white dark:bg-neutral-surface-dark p-1",
+                  "rounded-lg p-6 h-full flex flex-col items-center justify-center text-center transition-colors",
+                  "bg-primary/10 dark:bg-primary/15 group-hover:bg-primary/20 dark:group-hover:bg-primary/25",
                 )}
               >
-                <div
-                  className={cn(
-                    "rounded-lg p-6 h-full flex flex-col items-center justify-center text-center transition-colors",
-                    "bg-primary/5 dark:bg-primary/10 group-hover:bg-secondary dark:group-hover:bg-primary-foreground",
-                  )}
-                >
-                  {cta.icon}
-                  <span className="font-bold text-foreground mb-1">
-                    {cta.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {cta.description}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+                {cta.icon}
+                <span className="font-bold text-foreground mb-1">
+                  {cta.title}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {cta.description}
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
+
+        {/* Community feed link */}
+        <Link
+          href={feedHref}
+          className="inline-flex items-center gap-1.5 mt-6 text-sm text-muted-foreground hover:text-primary transition-colors"
+        >
+          Browse the community feed
+          <ArrowRight className="size-3.5" />
+        </Link>
       </div>
     </section>
   );

@@ -9,10 +9,6 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-/**
- * Stateless JWT helper for generating and parsing tokens. This service does NOT hit the database;
- * it just encodes/decodes information into a signed token using a shared secret.
- */
 @Service
 public class JwtService {
 
@@ -26,7 +22,6 @@ public class JwtService {
     this.expirationMs = expirationMs;
   }
 
-  /** Generate a JWT for a user. */
   public String generateToken(String username, Long userId, String role) {
     return Jwts.builder()
         .subject(username)

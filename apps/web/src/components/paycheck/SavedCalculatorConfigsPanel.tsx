@@ -18,7 +18,7 @@ import {
   getStoredSelectedCalculatorConfig,
   saveStoredSelectedCalculatorConfig,
   type StoredSelectedCalculatorConfig,
-} from "@/lib/paycheck-draft";
+} from "@/lib/paycheck/draft";
 import {
   deleteCalculatorConfig,
   formatSavedItemTimestamp,
@@ -27,7 +27,7 @@ import {
   saveCalculatorConfig,
   type SavedCalculatorConfigDetail,
   type SavedCalculatorConfigSummary,
-} from "@/lib/paycheck-persistence";
+} from "@/lib/paycheck/api";
 import { type PaycheckConfig } from "@/lib/paycheck";
 
 type SavedCalculatorConfigsPanelProps = {

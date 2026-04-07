@@ -5,7 +5,6 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
-/** User model for all users. * */
 @Entity
 @Table(name = "users")
 public class User {
@@ -16,14 +15,17 @@ public class User {
 
   @Column(nullable = false, unique = true)
   @Getter
+  @Setter
   private String username;
 
   @Column(nullable = false, unique = true)
   @Getter
+  @Setter
   private String email;
 
   @Column(name = "password_hash", nullable = false)
   @Getter
+  @Setter
   private String passwordHash;
 
   @Enumerated(EnumType.STRING)

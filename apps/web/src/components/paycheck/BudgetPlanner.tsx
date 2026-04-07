@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { BudgetChartsSection } from "@/components/paycheck/BudgetChartsSection";
 import { BudgetExpensesTable } from "@/components/paycheck/BudgetExpensesTable";
@@ -19,22 +20,23 @@ import {
 import {
   type PlannerExpense,
   getCalculatorConfig,
+  getPlannerDocument,
   listCalculatorConfigs,
   type SavedCalculatorConfigSummary,
   type SavedPlannerDocumentDetail,
-} from "@/lib/paycheck-persistence";
+} from "@/lib/paycheck/api";
 import {
   getStoredPlannerData,
   getStoredSelectedCalculatorConfig,
   saveStoredSelectedCalculatorConfig,
   saveStoredPlannerData,
   type StoredSelectedCalculatorConfig,
-} from "@/lib/paycheck-draft";
+} from "@/lib/paycheck/draft";
 import {
   calculatePayroll,
   deriveFicaMode,
 } from "@/lib/paycheck";
-import { formatMonthYear } from "@/lib/paycheck-format";
+import { formatMonthYear } from "@/lib/paycheck/format";
 
 function getOverride(expense: PlannerExpense, monthKey: string): number {
   return expense.overrides[monthKey] ?? expense.defaultAmount;
@@ -45,6 +47,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function BudgetPlanner() {
+  const searchParams = useSearchParams();
   const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [savedConfigs, setSavedConfigs] = useState<SavedCalculatorConfigSummary[]>(
     [],
@@ -161,6 +164,17 @@ export function BudgetPlanner() {
   useEffect(() => {
     saveStoredPlannerData({ expenses });
   }, [expenses]);
+
+  useEffect(() => {
+    const plannerId = searchParams.get("planner");
+    if (!plannerId || !token) return;
+    getPlannerDocument(token, plannerId)
+      .then(({ plannerData }) => {
+        setExpenses(plannerData.expenses);
+        saveStoredPlannerData(plannerData);
+      })
+      .catch(() => {});
+  }, [searchParams, token]);
 
   const monthTotalExpenses = (monthKey: string) =>
     expenses.reduce((sum, expense) => sum + getOverride(expense, monthKey), 0);

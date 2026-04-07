@@ -56,7 +56,6 @@ public class SecurityConfig {
     return source;
   }
 
-  /** One-way hash so plain passwords are never stored or compared. */
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();

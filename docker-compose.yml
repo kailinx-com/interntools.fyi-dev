@@ -8,13 +8,19 @@ services:
         condition: service_started
     environment:
       NODE_ENV: development
+      DOCKER_DEV: "1"
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api
     ports:
       - "3000:3000"
     volumes:
       - .:/workspace
       - web-node-modules:/workspace/apps/web/node_modules
-    command: sh -c "corepack enable && pnpm install && pnpm dev"
+      - web-next-cache:/workspace/apps/web/.next
+    command: >-
+      sh -c "corepack enable && pnpm install &&
+      pnpm exec next dev -H 0.0.0.0 -p 3000"
 
   api:
     image: maven:3.9-eclipse-temurin-21
@@ -28,6 +34,8 @@ services:
     env_file:
       - ./.env
     environment:
+      SPRING_DEVTOOLS_RESTART_POLL_INTERVAL: 1s
+      SPRING_DEVTOOLS_RESTART_QUIET_PERIOD: 400ms
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/interntools_dev
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
@@ -101,4 +109,5 @@ services:
 volumes:
   maven-cache:
   web-node-modules:
+  web-next-cache:
   mongo-data:

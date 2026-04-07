@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Paycheck configurations for Paycheck Calculator. */
 @Data
 @Entity
 public class PaycheckConfig {

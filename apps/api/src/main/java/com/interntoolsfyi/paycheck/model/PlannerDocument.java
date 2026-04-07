@@ -13,7 +13,6 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-/** MongoDB document for persisted budget planner JSON payloads. */
 @Document(collection = "paycheck_planner_documents")
 @CompoundIndex(name = "user_created_at_idx", def = "{'user_id': 1, 'created_at': -1}")
 public class PlannerDocument {

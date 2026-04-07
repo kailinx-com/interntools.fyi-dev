@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LockedPaycheckSection } from "@/components/paycheck/LockedPaycheckSection";
 import { PayrollConfigurationCard } from "@/components/paycheck/PayrollConfigurationCard";
@@ -15,7 +15,7 @@ import { PayrollTrendsCard } from "@/components/paycheck/PayrollTrendsCard";
 import {
   getStoredPaycheckConfig,
   saveStoredPaycheckConfig,
-} from "@/lib/paycheck-draft";
+} from "@/lib/paycheck/draft";
 import {
   calculatePayroll,
   DEFAULT_PAYCHECK_CONFIG,
@@ -25,10 +25,11 @@ import {
   type PeriodType,
   STATE_TAX_DATA,
 } from "@/lib/paycheck";
-import { type SavedCalculatorConfigDetail } from "@/lib/paycheck-persistence";
+import { getCalculatorConfig, type SavedCalculatorConfigDetail } from "@/lib/paycheck/api";
 
 export function PayrollCalculator() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const isDetailLocked = !isAuthLoading && !isAuthenticated;
   const [activeTab, setActiveTab] = useState<PeriodType>("weekly");
@@ -147,12 +148,25 @@ export function PayrollCalculator() {
     saveStoredPaycheckConfig({ ...config, ficaMode });
   }, [config, ficaMode]);
 
+  useEffect(() => {
+    const scenarioId = searchParams.get("scenario");
+    if (!scenarioId || !token) return;
+    getCalculatorConfig(token, Number(scenarioId))
+      .then(({ config: nextConfig }) => {
+        setConfig(nextConfig);
+        saveStoredPaycheckConfig(nextConfig);
+      })
+      .catch(() => {});
+  }, [searchParams, token]);
+
   const goToPlanner = () => {
     saveStoredPaycheckConfig({ ...config, ficaMode });
     router.push("/calculator/planner");
   };
 
-  const handleLoadConfig = ({ config: nextConfig }: SavedCalculatorConfigDetail) => {
+  const handleLoadConfig = ({
+    config: nextConfig,
+  }: SavedCalculatorConfigDetail) => {
     setConfig(nextConfig);
     saveStoredPaycheckConfig(nextConfig);
   };
@@ -180,9 +194,7 @@ export function PayrollCalculator() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="mx-auto space-y-6 p-4 md:p-8">
-        <PayrollHeader
-          onGoToPlanner={goToPlanner}
-        />
+        <PayrollHeader onGoToPlanner={goToPlanner} />
 
         <div className="grid items-start gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
           <PayrollConfigurationCard

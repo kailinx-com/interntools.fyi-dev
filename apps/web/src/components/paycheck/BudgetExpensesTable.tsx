@@ -18,7 +18,7 @@ import { formatMoney } from "@/lib/paycheck";
 import {
   type PlannerExpense,
   type PlannerMonthNet,
-} from "@/lib/paycheck-persistence";
+} from "@/lib/paycheck/api";
 
 type GrandTotals = {
   netPay: number;

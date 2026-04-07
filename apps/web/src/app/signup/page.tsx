@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SignupCard } from "@/components/signup/SignupCard";
+import { SignupCard } from "@/components/auth/SignupCard";
 
 export const metadata: Metadata = {
   title: "Create account | interntools.fyi",

@@ -11,10 +11,10 @@ export interface StatsBarProps {
 }
 
 const defaultStats: StatItem[] = [
-  { value: "10k+", label: "Active Interns" },
-  { value: "500+", label: "Companies" },
-  { value: "50", label: "Major Cities" },
-  { value: "4.9/5", label: "User Rating" },
+  { value: "All 50", label: "States covered" },
+  { value: "Free", label: "No account needed" },
+  { value: "2+", label: "Paycheck tools" },
+  { value: "Open", label: "Community posts" },
 ];
 
 export function StatsBar({ stats = defaultStats, className }: StatsBarProps) {

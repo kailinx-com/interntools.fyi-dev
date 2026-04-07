@@ -16,31 +16,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Legacy calculator-scenario service kept for backward-compatible endpoints. */
 @Service
 public class PaycheckScenarioService {
 
   private final PaycheckConfigRepository paycheckConfigRepo;
   private final UserRepository userRepository;
 
-  /**
-   * Constructor for PaycheckScenarioService.
-   *
-   * @param paycheckConfigRepo The repository for paycheck configurations.
-   * @param userRepository The repository for users.
-   */
   public PaycheckScenarioService(
       PaycheckConfigRepository paycheckConfigRepo, UserRepository userRepository) {
     this.paycheckConfigRepo = paycheckConfigRepo;
     this.userRepository = userRepository;
   }
 
-  /**
-   * Get all legacy calculator scenarios for the current user.
-   *
-   * @param authentication The authentication object.
-   * @return A list of legacy scenario summaries.
-   */
   @Transactional(readOnly = true)
   public List<ScenarioSummaryResponse> getAllScenarios(Authentication authentication) {
     User currentUser = requireCurrentUser(authentication);
@@ -49,13 +36,6 @@ public class PaycheckScenarioService {
         .toList();
   }
 
-  /**
-   * Create a legacy calculator scenario.
-   *
-   * @param authentication The authentication object.
-   * @param request The request object.
-   * @return The created legacy scenario detail response.
-   */
   @Transactional
   public ScenarioDetailResponse createScenario(
       Authentication authentication, SaveScenarioRequest request) {
@@ -90,14 +70,6 @@ public class PaycheckScenarioService {
                     HttpStatus.UNAUTHORIZED, "Authenticated user not found"));
   }
 
-  /**
-   * Convert a PaycheckConfigDto to a PaycheckConfig entity.
-   *
-   * @param config The PaycheckConfigDto object.
-   * @param scenarioName The name of the legacy scenario.
-   * @param user The user object.
-   * @return The PaycheckConfig entity.
-   */
   private PaycheckConfig toEntity(PaycheckConfigDto config, String scenarioName, User user) {
     PaycheckConfig entity = new PaycheckConfig();
     entity.setName(scenarioName);
@@ -116,33 +88,15 @@ public class PaycheckScenarioService {
     return entity;
   }
 
-  /**
-   * Convert a PaycheckConfig entity to a ScenarioSummaryResponse object.
-   *
-   * @param entity The PaycheckConfig entity.
-   * @return The ScenarioSummaryResponse object.
-   */
   private ScenarioSummaryResponse toSummaryResponse(PaycheckConfig entity) {
     return new ScenarioSummaryResponse(entity.getId(), entity.getName(), entity.getCreatedAt());
   }
 
-  /**
-   * Convert a PaycheckConfig entity to a ScenarioDetailResponse object.
-   *
-   * @param entity The PaycheckConfig entity.
-   * @return The ScenarioDetailResponse object.
-   */
   private ScenarioDetailResponse toDetailResponse(PaycheckConfig entity) {
     return new ScenarioDetailResponse(
         entity.getId(), entity.getName(), entity.getCreatedAt(), toConfigDto(entity));
   }
 
-  /**
-   * Convert a PaycheckConfig entity to a PaycheckConfigDto object.
-   *
-   * @param entity The PaycheckConfig entity.
-   * @return The PaycheckConfigDto object.
-   */
   private PaycheckConfigDto toConfigDto(PaycheckConfig entity) {
     return new PaycheckConfigDto(
         entity.getStartDate(),
@@ -158,13 +112,6 @@ public class PaycheckScenarioService {
         entity.getFicaMode());
   }
 
-  /**
-   * Get a legacy calculator scenario by id.
-   *
-   * @param authentication The authentication object.
-   * @param id The id of the legacy scenario.
-   * @return The legacy scenario detail response.
-   */
   @Transactional(readOnly = true)
   public ScenarioDetailResponse getScenario(Authentication authentication, Long id) {
     User currentUser = requireCurrentUser(authentication);
@@ -180,12 +127,6 @@ public class PaycheckScenarioService {
     return toDetailResponse(scenarioToGet);
   }
 
-  /**
-   * Delete a legacy calculator scenario by id.
-   *
-   * @param authentication The authentication object.
-   * @param id The id of the legacy scenario.
-   */
   @Transactional
   public void deleteScenario(Authentication authentication, Long id) {
     User currentUser = requireCurrentUser(authentication);

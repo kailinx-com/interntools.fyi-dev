@@ -9,7 +9,7 @@ import com.interntoolsfyi.auth.controller.AuthController;
 import com.interntoolsfyi.auth.controller.MeController;
 import com.interntoolsfyi.common.GlobalExceptionHandler;
 import com.interntoolsfyi.config.SecurityConfig;
-import com.interntoolsfyi.controller.HomeController;
+import com.interntoolsfyi.home.HomeController;
 import com.interntoolsfyi.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

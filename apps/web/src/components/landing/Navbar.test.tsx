@@ -39,8 +39,50 @@ jest.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-// Mock heavier UI primitives so the test can focus on Navbar behavior:
-// visible links, auth states, and router interactions.
+jest.mock("@/components/ui/dropdown-menu", () => {
+  return {
+    DropdownMenu: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    DropdownMenuTrigger: ({
+      asChild = false,
+      children,
+      ...props
+    }: React.ComponentPropsWithoutRef<"button"> & {
+      asChild?: boolean;
+      children: React.ReactNode;
+    }) => {
+      if (asChild && React.isValidElement(children)) {
+        return React.cloneElement(children, props);
+      }
+      return <button type="button" {...props}>{children}</button>;
+    },
+    DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    DropdownMenuItem: ({
+      asChild = false,
+      onSelect,
+      children,
+      ...props
+    }: React.ComponentPropsWithoutRef<"button"> & {
+      asChild?: boolean;
+      onSelect?: () => void;
+      children: React.ReactNode;
+    }) => {
+      if (asChild && React.isValidElement(children)) {
+        return React.cloneElement(children, props);
+      }
+      return (
+        <button type="button" onClick={onSelect} {...props}>
+          {children}
+        </button>
+      );
+    },
+    DropdownMenuSeparator: () => <hr />,
+  };
+});
+
 jest.mock("@/components/ui/button", () => {
   return {
     Button: ({
@@ -130,7 +172,6 @@ type MockAuthState = {
   logout: jest.Mock<Promise<void>, []>;
 };
 
-// A small factory keeps each test focused on only the state it cares about.
 function createAuthState(overrides: Partial<MockAuthState> = {}): MockAuthState {
   return {
     user: null,
@@ -252,12 +293,10 @@ describe("Navbar", () => {
 
     renderNavbar();
 
-    expect(screen.getByRole("link", { name: /hi, kailinx/i })).toHaveAttribute(
-      "href",
-      "/",
-    );
+    expect(screen.getByRole("button", { name: /hi, kailinx/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /logout/i }));
+    await user.click(screen.getByRole("button", { name: /hi, kailinx/i }));
+    await user.click(screen.getByRole("button", { name: /log out/i }));
 
     expect(logout).toHaveBeenCalledTimes(1);
     await waitFor(() => {

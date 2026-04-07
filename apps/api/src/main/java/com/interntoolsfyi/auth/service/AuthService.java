@@ -4,11 +4,14 @@ import com.interntoolsfyi.auth.dto.AuthResponse;
 import com.interntoolsfyi.auth.dto.LoginRequest;
 import com.interntoolsfyi.auth.dto.LoginResponse;
 import com.interntoolsfyi.auth.dto.RegisterRequest;
+import com.interntoolsfyi.auth.dto.UpdateProfileRequest;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Controller for authentication that decides what should happen when someone registers or logs in.
@@ -104,6 +107,40 @@ public class AuthService {
             .findByUsername(username)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
     return toAuthResponse(user);
+  }
+
+  @Transactional
+  public AuthResponse updateProfile(String currentUsername, UpdateProfileRequest request) {
+    User user =
+        userRepository
+            .findByUsername(currentUsername)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+    if (request.username() != null && !request.username().isBlank()
+        && !request.username().equals(user.getUsername())) {
+      if (userRepository.existsByUsername(request.username())) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken");
+      }
+      user.setUsername(request.username());
+    }
+
+    if (request.email() != null && !request.email().isBlank()
+        && !request.email().equals(user.getEmail())) {
+      if (userRepository.existsByEmail(request.email())) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already taken");
+      }
+      user.setEmail(request.email());
+    }
+
+    if (request.newPassword() != null && !request.newPassword().isBlank()) {
+      if (request.currentPassword() == null
+          || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+        throw new ResponseStatusException(HttpStatus.valueOf(422), "Current password is incorrect");
+      }
+      user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+    }
+
+    return toAuthResponse(userRepository.save(user));
   }
 
   /**

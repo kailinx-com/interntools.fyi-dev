@@ -17,7 +17,6 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Unified saved paycheck plan containing calculator config and planner expenses. */
 @Entity
 @Table(name = "paycheck_saved_plans")
 public class PaycheckSavedPlan {

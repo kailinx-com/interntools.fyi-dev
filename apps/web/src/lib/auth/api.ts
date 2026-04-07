@@ -33,3 +33,18 @@ export function logoutUser(token: string) {
     token,
   });
 }
+
+export type UpdateProfileRequest = {
+  username?: string;
+  email?: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
+
+export function updateProfile(token: string, payload: UpdateProfileRequest) {
+  return apiRequest<AuthUser>("/me", {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
