@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, BarChart2, Bookmark } from "lucide-react";
-import { type PostSummary } from "@/lib/offers/api";
+import { cn } from "@/lib/utils";
+import { bookmarkPost, unbookmarkPost, type PostSummary } from "@/lib/offers/api";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useState } from "react";
 
 type OfferSnapshot = {
   company?: string;
@@ -53,9 +56,24 @@ export type ArticleProps = {
 
 export function Article({ post, offerSnapshots }: ArticleProps) {
   const snapshots = parseSnapshots(offerSnapshots);
+  const { token } = useAuth();
+  const [bookmarked, setBookmarked] = useState(post.bookmarked);
+
+  async function toggleBookmark(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setBookmarked((prev) => !prev);
+    try {
+      if (bookmarked) await unbookmarkPost(token, post.id);
+      else await bookmarkPost(token, post.id);
+    } catch {
+      setBookmarked((prev) => !prev); // revert on error
+    }
+  }
 
   return (
-    <Card className="rounded-2xl shadow-none transition-all hover:ring-1 ring-outline-variant/20">
+    <Link href={`/offers/${post.id}`} className="block group">
+    <Card className="rounded-2xl shadow-none transition-all group-hover:ring-1 group-hover:ring-primary/20 group-hover:shadow-sm">
       <CardContent className="p-8">
         <div className="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
           <div>
@@ -67,11 +85,9 @@ export function Article({ post, offerSnapshots }: ArticleProps) {
                 {relativeTime(post.publishedAt ?? post.createdAt)}
               </span>
             </div>
-            <Link href={`/offers/${post.id}`}>
-              <h2 className="text-2xl font-bold tracking-tight hover:text-primary transition-colors">
-                {post.title}
-              </h2>
-            </Link>
+            <h2 className="text-2xl font-bold tracking-tight group-hover:text-primary transition-colors">
+              {post.title}
+            </h2>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -83,7 +99,41 @@ export function Article({ post, offerSnapshots }: ArticleProps) {
           </div>
         </div>
 
-        {snapshots.length > 0 && (
+        {snapshots.length === 1 && (() => {
+          const snap = snapshots[0];
+          const isRejection = snap.label?.toLowerCase() === "rejection";
+          return (
+            <div className={cn(
+              "flex items-center justify-between p-5 rounded-xl border mb-8 gap-4",
+              isRejection
+                ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900"
+                : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900",
+            )}>
+              <div className="space-y-0.5">
+                <p className={cn(
+                  "text-xs font-semibold uppercase tracking-widest",
+                  isRejection ? "text-red-500" : "text-emerald-600 dark:text-emerald-400",
+                )}>
+                  {snap.label ?? "Acceptance"}
+                </p>
+                <h4 className="text-lg font-bold">{snap.company ?? "—"}</h4>
+                {snap.role && <p className="text-sm text-muted-foreground">{snap.role}</p>}
+              </div>
+              {snap.compensation && (
+                <Badge variant="outline" className={cn(
+                  "text-sm font-bold shrink-0",
+                  isRejection
+                    ? "border-red-300 text-red-600 dark:border-red-700 dark:text-red-400"
+                    : "border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400",
+                )}>
+                  {snap.compensation}
+                </Badge>
+              )}
+            </div>
+          );
+        })()}
+
+        {snapshots.length > 1 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {snapshots.map((snap, i) => (
               <div
@@ -112,23 +162,27 @@ export function Article({ post, offerSnapshots }: ArticleProps) {
         <Separator className="mb-4" />
 
         <div className="flex items-center gap-1">
-          <Link href={`/offers/${post.id}`}>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-2">
-              <MessageCircle className="size-4" />
-              Comments
-            </Button>
-          </Link>
-          <Link href={`/offers/${post.id}`}>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-2">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-2 pointer-events-none">
+            <MessageCircle className="size-4" />
+            Comments
+          </Button>
+          {post.type === "comparison" && (
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary gap-2 pointer-events-none">
               <BarChart2 className="size-4" />
               Vote
             </Button>
-          </Link>
-          <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-primary">
-            <Bookmark className="size-4" />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("ml-auto relative z-10", bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary")}
+            onClick={(e) => void toggleBookmark(e)}
+          >
+            <Bookmark className={cn("size-4", bookmarked && "fill-current")} />
           </Button>
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 }

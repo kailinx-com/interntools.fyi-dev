@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -20,7 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, ThumbsUp, Sparkles } from "lucide-react";
+import { Bookmark, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LockedPaycheckSection } from "@/components/paycheck/LockedPaycheckSection";
 import {
@@ -30,6 +30,8 @@ import {
   createComment,
   castVote,
   updatePost,
+  bookmarkPost,
+  unbookmarkPost,
   type PostDetailResponse,
   type CommentResponse,
   type VoteTallyResponse,
@@ -132,6 +134,104 @@ function VoteSection({
   );
 }
 
+function CommentItem({
+  comment,
+  allComments,
+  token,
+  postId,
+  onReplyPosted,
+  depth = 0,
+}: {
+  comment: CommentResponse;
+  allComments: CommentResponse[];
+  token: string | null;
+  postId: number;
+  onReplyPosted: (reply: CommentResponse) => void;
+  depth?: number;
+}) {
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const directReplies = allComments.filter((c) => c.parentId === comment.id);
+
+  const handleReply = async () => {
+    if (!token || !replyText.trim()) return;
+    setIsSubmitting(true);
+    try {
+      const reply = await createComment(token, postId, { body: replyText.trim(), parentId: comment.id });
+      onReplyPosted(reply);
+      setReplyText("");
+      setIsReplying(false);
+    } catch {
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const avatarSize = depth === 0 ? "size-9" : "size-7";
+  const avatarTextSize = depth === 0 ? "text-xs" : "text-[10px]";
+
+  return (
+    <div className="flex gap-3">
+      <Avatar className={`${avatarSize} shrink-0`}>
+        <AvatarFallback className={avatarTextSize}>{initials(comment.authorUsername)}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-semibold">@{comment.authorUsername}</span>
+          <span className="text-xs text-muted-foreground">{relativeTime(comment.createdAt)}</span>
+          {comment.editedAt && <span className="text-xs text-muted-foreground">(edited)</span>}
+        </div>
+        <p className="text-sm leading-relaxed">{comment.body}</p>
+        {token && (
+          <button
+            className="text-xs text-muted-foreground hover:text-primary mt-1.5 transition-colors"
+            onClick={() => setIsReplying((v) => !v)}
+          >
+            {isReplying ? "Cancel" : "Reply"}
+          </button>
+        )}
+
+        {isReplying && (
+          <div className="mt-3 space-y-2">
+            <Textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder={`Reply to @${comment.authorUsername}…`}
+              rows={3}
+              className="resize-none text-sm"
+              autoFocus
+            />
+            <div className="flex justify-end">
+              <Button size="sm" disabled={!replyText.trim() || isSubmitting} onClick={() => void handleReply()}>
+                {isSubmitting ? <Spinner className="size-4" /> : null}
+                Post Reply
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {directReplies.length > 0 && (
+          <div className="mt-4 space-y-4 border-l-2 border-border pl-4">
+            {directReplies.map((r) => (
+              <CommentItem
+                key={r.id}
+                comment={r}
+                allComments={allComments}
+                token={token}
+                postId={postId}
+                onReplyPosted={onReplyPosted}
+                depth={depth + 1}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CommentsSection({
   postId,
   initialComments,
@@ -157,56 +257,49 @@ function CommentsSection({
     }
   };
 
-  return (
-    <>
-      <div className="space-y-6">
-        {comments.length === 0 && (
-          <p className="text-sm text-muted-foreground">No comments yet.</p>
-        )}
-        {comments.map((c) => (
-          <div key={c.id} className="flex gap-3">
-            <Avatar className="size-8 shrink-0">
-              <AvatarFallback className="text-xs">
-                {initials(c.authorUsername)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold">@{c.authorUsername}</span>
-                <span className="text-xs text-muted-foreground">
-                  {relativeTime(c.createdAt)}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {c.body}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+  const handleReplyPosted = (reply: CommentResponse) => {
+    setComments((prev) => [...prev, reply]);
+  };
 
+  const topLevel = comments.filter((c) => c.parentId == null);
+
+  return (
+    <div className="space-y-8">
       {token && (
-        <div className="mt-6">
+        <div className="space-y-3">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Add a perspective..."
-            rows={3}
-            className="resize-none mb-3"
+            placeholder="Share your perspective…"
+            rows={4}
+            className="resize-none"
           />
           <div className="flex justify-end">
-            <Button
-              size="sm"
-              disabled={!text.trim() || isSubmitting}
-              onClick={() => void handleSubmit()}
-            >
-              {isSubmitting ? <Spinner className="size-4" /> : null}
+            <Button disabled={!text.trim() || isSubmitting} onClick={() => void handleSubmit()}>
+              {isSubmitting ? <Spinner className="size-4 mr-2" /> : null}
               Post Comment
             </Button>
           </div>
         </div>
       )}
-    </>
+
+      {topLevel.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No comments yet. Be the first to share your thoughts.</p>
+      ) : (
+        <div className="space-y-8">
+          {topLevel.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              allComments={comments}
+              token={token}
+              postId={postId}
+              onReplyPosted={handleReplyPosted}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -221,6 +314,18 @@ export function PostDetail() {
   const [tally, setTally] = useState<VoteTallyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
+
+  async function toggleBookmark() {
+    if (!token) return;
+    setBookmarked((prev) => !prev);
+    try {
+      if (bookmarked) await unbookmarkPost(token, postId);
+      else await bookmarkPost(token, postId);
+    } catch {
+      setBookmarked((prev) => !prev);
+    }
+  }
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -254,6 +359,7 @@ export function PostDetail() {
     if (post) {
       setEditTitle(post.title);
       setEditBody(post.body ?? "");
+      setBookmarked(post.bookmarked);
     }
   }, [post]);
 
@@ -330,9 +436,10 @@ export function PostDetail() {
           description="Create a free account to view offer details, community notes, and voting."
           className="rounded-3xl"
         >
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
+        <div className="space-y-12">
+        <div className={post.type === "comparison" ? "grid grid-cols-1 md:grid-cols-12 gap-10 items-start" : ""}>
           {/* Main content */}
-          <div className="md:col-span-8 space-y-10">
+          <div className={post.type === "comparison" ? "md:col-span-8 space-y-10" : "space-y-10"}>
             {/* Author */}
             <div className="flex items-center gap-3">
               <Avatar>
@@ -359,6 +466,17 @@ export function PostDetail() {
                 >
                   {post.type}
                 </Badge>
+                {token && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("size-8", bookmarked ? "text-primary" : "text-muted-foreground")}
+                    onClick={() => void toggleBookmark()}
+                    title={bookmarked ? "Remove bookmark" : "Bookmark"}
+                  >
+                    <Bookmark className={cn("size-4", bookmarked && "fill-current")} />
+                  </Button>
+                )}
                 {isAuthor && !isEditing && (
                   <Button
                     variant="ghost"
@@ -433,10 +551,12 @@ export function PostDetail() {
               </div>
             ) : null}
 
-            {/* Comparison table */}
+            {/* Offer details / Comparison table */}
             {snapshots.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-lg font-bold">Offer Comparison</h2>
+                <h2 className="text-lg font-bold">
+                  {post.type === "comparison" ? "Offer Comparison" : "Offer Details"}
+                </h2>
                 <Card className="shadow-none overflow-hidden">
                   <CardContent className="p-0">
                     <Table>
@@ -493,42 +613,42 @@ export function PostDetail() {
             )}
           </div>
 
-          {/* Sidebar */}
-          <aside className="md:col-span-4 space-y-6 md:sticky md:top-24">
-            {/* Community Vote */}
-            {snapshots.length > 0 && (
-              <Card className="shadow-none">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base">Community Vote</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <VoteSection
-                    postId={post.id}
-                    snapshots={snapshots}
-                    tally={tally}
-                  />
-                </CardContent>
-              </Card>
-            )}
+          {/* Sidebar — comparisons only */}
+          {post.type === "comparison" && (
+            <aside className="md:col-span-4 space-y-6 md:sticky md:top-24">
+              {snapshots.length > 0 && (
+                <Card className="shadow-none">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-base">Community Vote</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <VoteSection
+                      postId={post.id}
+                      snapshots={snapshots}
+                      tally={tally}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </aside>
+          )}
+        </div>
 
-            {/* Comments */}
-            <Card className="shadow-none">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base">
-                  Comments ({comments.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CommentsSection postId={post.id} initialComments={comments} />
-              </CardContent>
-            </Card>
+        {/* Comments — full width below post */}
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold">
+            Comments ({comments.length})
+          </h2>
+          <CommentsSection postId={post.id} initialComments={comments} />
+        </div>
 
-            <Link href="/offers/submit">
-              <Button variant="outline" className="w-full">
-                Publish Your Own Comparison
-              </Button>
-            </Link>
-          </aside>
+        <div className="pt-2">
+          <Link href="/offers/submit">
+            <Button variant="outline">
+              Publish Your Own Post
+            </Button>
+          </Link>
+        </div>
         </div>
         </LockedPaycheckSection>
       </div>

@@ -75,7 +75,7 @@ export function NewsletterSignup({
           <Button
             type="submit"
             disabled={loading || !email.trim()}
-            className="bg-primary text-white hover:bg-primary/90 rounded-lg px-3 py-2 shrink-0"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-3 py-2 shrink-0"
           >
             {submitLabel ?? (
               <ArrowRight className="size-4" aria-label="Sign up" />

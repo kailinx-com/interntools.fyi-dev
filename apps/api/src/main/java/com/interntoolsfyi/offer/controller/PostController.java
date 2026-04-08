@@ -25,8 +25,9 @@ public class PostController {
 
   @GetMapping
   public Page<PostSummaryResponse> listPosts(
+      Authentication auth,
       @PageableDefault(size = 20) Pageable pageable) {
-    return postService.listPublishedPosts(pageable);
+    return postService.listPublishedPosts(auth, pageable);
   }
 
   @GetMapping("/me")

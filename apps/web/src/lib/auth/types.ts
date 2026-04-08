@@ -1,3 +1,7 @@
+/**
+ * Pure TypeScript types for auth payloads — no runtime exports to unit-test here.
+ * If you add runtime helpers, add `types.test.ts` or colocate tests with the helpers.
+ */
 export type UserRole = "STUDENT" | "ADMIN";
 
 export interface AuthUser {

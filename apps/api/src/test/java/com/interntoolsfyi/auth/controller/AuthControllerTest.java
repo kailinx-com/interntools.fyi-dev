@@ -228,6 +228,12 @@ class AuthControllerTest {
         .andExpect(status().isUnauthorized());
   }
 
+  @Test
+  @DisplayName("POST /auth/logout succeeds even without Authorization header")
+  void logoutWithoutAuthorizationHeaderStillSucceeds() throws Exception {
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isOk());
+  }
+
   private void registerUser(String username, String email, String password) throws Exception {
     mockMvc
         .perform(

@@ -21,6 +21,10 @@ public class Comment {
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
+  @ManyToOne
+  @JoinColumn(name = "parent_id")
+  private Comment parent;
+
   @Lob
   @Column(nullable = false)
   private String body;

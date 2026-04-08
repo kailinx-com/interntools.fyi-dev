@@ -13,4 +13,5 @@ public record PostSummaryResponse(
     PostStatus status,
     String authorUsername,
     Instant publishedAt,
-    Instant createdAt) {}
+    Instant createdAt,
+    boolean bookmarked) {}

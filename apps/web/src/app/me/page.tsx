@@ -12,14 +12,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { updateProfile } from "@/lib/auth/api";
 import {
   deleteComparison,
   deleteOffer,
   deletePost,
+  fetchBookmarkedPosts,
   fetchComparisons,
   fetchMyPosts,
   fetchOffers,
+  unbookmarkPost,
   type Comparison,
   type Offer,
   type PostSummary,
@@ -38,6 +50,7 @@ type DashboardData = {
   offers: Offer[];
   comparisons: Comparison[];
   posts: PostSummary[];
+  bookmarks: PostSummary[];
   scenarios: SavedCalculatorConfigSummary[];
   planners: SavedPlannerDocumentSummary[];
 };
@@ -59,7 +72,7 @@ function getErrorMessage(error: unknown): string {
 
 export default function MePage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isLoading, logout, refreshMe } = useAuth();
+  const { user, token, isAuthenticated, isLoading, logout, updateUser } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -74,6 +87,10 @@ export default function MePage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    lines: string[];
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -87,16 +104,17 @@ export default function MePage() {
     setIsLoadingData(true);
     setLoadError(null);
     try {
-      const [allOffers, comparisons, posts, scenarios, planners] = await Promise.all([
+      const [allOffers, comparisons, posts, bookmarks, scenarios, planners] = await Promise.all([
         fetchOffers(token),
         fetchComparisons(token),
         fetchMyPosts(token),
+        fetchBookmarkedPosts(token),
         listCalculatorConfigs(token),
-        listPlannerDocuments(token),
+        listPlannerDocuments(token).catch(() => [] as SavedPlannerDocumentSummary[]),
       ]);
       const comparisonOfferIds = new Set(comparisons.flatMap((c) => c.includedOfferIds));
       const offers = allOffers.filter((o) => !comparisonOfferIds.has(o.id));
-      setData({ offers, comparisons, posts, scenarios, planners });
+      setData({ offers, comparisons, posts, bookmarks, scenarios, planners });
     } catch (e) {
       setLoadError(getErrorMessage(e));
       setData(null);
@@ -111,7 +129,7 @@ export default function MePage() {
   }, [isAuthenticated, token, loadDashboard]);
 
   async function handleDelete(
-    kind: "offer" | "comparison" | "post" | "scenario" | "planner",
+    kind: "offer" | "comparison" | "post" | "bookmark" | "scenario" | "planner",
     id: number | string,
   ) {
     if (!token || !window.confirm("Delete this item?")) return;
@@ -127,6 +145,9 @@ export default function MePage() {
           break;
         case "post":
           await deletePost(token, id as number);
+          break;
+        case "bookmark":
+          await unbookmarkPost(token, id as number);
           break;
         case "scenario":
           await deleteCalculatorConfig(token, id as number);
@@ -153,7 +174,30 @@ export default function MePage() {
     setIsEditingProfile(true);
   }
 
-  async function handleProfileSave() {
+  async function doProfileSave() {
+    if (!token) return;
+    setProfileSaving(true);
+    try {
+      const updatedUser = await updateProfile(token, {
+        username: profileUsername !== user?.username ? profileUsername : undefined,
+        email: profileEmail !== user?.email ? profileEmail : undefined,
+        currentPassword: currentPassword || undefined,
+        newPassword: newPassword || undefined,
+      });
+      updateUser(updatedUser);
+      setProfileSuccess(true);
+      setIsEditingProfile(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e) {
+      setProfileError(e instanceof Error ? e.message : "Failed to update profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
+  function handleProfileSave() {
     if (!token) return;
     setProfileError(null);
 
@@ -166,25 +210,23 @@ export default function MePage() {
       return;
     }
 
-    setProfileSaving(true);
-    try {
-      await updateProfile(token, {
-        username: profileUsername !== user?.username ? profileUsername : undefined,
-        email: profileEmail !== user?.email ? profileEmail : undefined,
-        currentPassword: currentPassword || undefined,
-        newPassword: newPassword || undefined,
-      });
-      await refreshMe();
-      setProfileSuccess(true);
-      setIsEditingProfile(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (e) {
-      setProfileError(e instanceof Error ? e.message : "Failed to update profile.");
-    } finally {
-      setProfileSaving(false);
+    const changingUsername = profileUsername !== user?.username && profileUsername.trim() !== "";
+    const changingEmail = profileEmail !== user?.email && profileEmail.trim() !== "";
+
+    if ((changingUsername || changingEmail) && !currentPassword) {
+      setProfileError("Current password is required to change your username or email.");
+      return;
     }
+
+    if (changingUsername || changingEmail) {
+      const lines: string[] = [];
+      if (changingUsername) lines.push(`Username: "${user?.username}" → "${profileUsername}"`);
+      if (changingEmail) lines.push(`Email: "${user?.email}" → "${profileEmail}"`);
+      setConfirmDialog({ lines, onConfirm: () => void doProfileSave() });
+      return;
+    }
+
+    void doProfileSave();
   }
 
   if (isLoading || (!isAuthenticated && !token)) {
@@ -320,7 +362,7 @@ export default function MePage() {
                 )}
 
                 <div className="flex gap-3">
-                  <Button disabled={profileSaving} onClick={() => void handleProfileSave()}>
+                  <Button disabled={profileSaving} onClick={handleProfileSave}>
                     {profileSaving && <Spinner className="size-4 mr-2" />}
                     Save Changes
                   </Button>
@@ -557,6 +599,56 @@ export default function MePage() {
               )}
             </section>
 
+            {/* Bookmarked posts */}
+            <section>
+              <h2 className="mb-3 text-lg font-semibold">Bookmarked posts</h2>
+              {data.bookmarks.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No bookmarks yet.{" "}
+                  <Link href="/offers" className="text-primary underline-offset-4 hover:underline">
+                    Browse the feed
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <ul className="divide-y rounded-lg border">
+                  {data.bookmarks.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <Link
+                          href={`/offers/${p.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {p.title}
+                        </Link>
+                        <p className="text-muted-foreground text-sm">
+                          {p.type} · @{p.authorUsername}
+                          {p.publishedAt ? ` · ${formatSavedItemTimestamp(p.publishedAt)}` : ""}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-destructive shrink-0"
+                        title="Remove bookmark"
+                        onClick={() => void handleDelete("bookmark", p.id)}
+                        disabled={deletingId === `bookmark-${p.id}`}
+                      >
+                        {deletingId === `bookmark-${p.id}` ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
             {/* Paycheck scenarios */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Paycheck scenarios</h2>
@@ -673,6 +765,35 @@ export default function MePage() {
           </div>
         ) : null}
       </div>
+      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm changes</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1">
+                <p>You are about to make the following changes:</p>
+                <ul className="mt-2 space-y-0.5 text-sm font-medium text-foreground">
+                  {confirmDialog?.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <p className="mt-2">Are you sure you want to continue?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmDialog?.onConfirm();
+                setConfirmDialog(null);
+              }}
+            >
+              Yes, save changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageShell>
   );
 }

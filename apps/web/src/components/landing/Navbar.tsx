@@ -286,7 +286,7 @@ export function Navbar({
                 </Link>
                 <Button
                   asChild
-                  className="bg-primary hover:bg-primary-dark dark:text-black text-white px-5 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md"
                 >
                   <Link href={signUpHref}>{signUpLabel}</Link>
                 </Button>

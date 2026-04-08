@@ -58,6 +58,11 @@ public class CommentAndVoteService {
     comment.setPost(post);
     comment.setUser(user);
     comment.setBody(request.body());
+    if (request.parentId() != null) {
+      Comment parent = commentRepository.findById(request.parentId())
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent comment not found"));
+      comment.setParent(parent);
+    }
     return toCommentResponse(commentRepository.save(comment));
   }
 
@@ -155,6 +160,7 @@ public class CommentAndVoteService {
     return new CommentResponse(
         c.getId(),
         c.getPost().getId(),
+        c.getParent() != null ? c.getParent().getId() : null,
         c.getUser().getUsername(),
         c.getBody(),
         c.getEditedAt(),

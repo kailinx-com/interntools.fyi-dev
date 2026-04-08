@@ -244,4 +244,58 @@ describe("PostDetail", () => {
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
     });
   });
+
+  it("allows authenticated user to create a top-level comment", async () => {
+    mockUseAuth.mockReturnValue(authorAuth());
+    mockCreateComment.mockResolvedValue({
+      id: 9,
+      postId: 1,
+      parentId: null,
+      authorUsername: "author42",
+      body: "New comment",
+      editedAt: null,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const user = userEvent.setup();
+    render(<PostDetail />);
+
+    await waitFor(() => expect(screen.getByText("Got an offer from Google")).toBeInTheDocument());
+    await user.type(screen.getByPlaceholderText(/share your perspective/i), "New comment");
+    await user.click(screen.getByRole("button", { name: /post comment/i }));
+
+    await waitFor(() =>
+      expect(mockCreateComment).toHaveBeenCalledWith("tok", 1, { body: "New comment" }),
+    );
+  });
+
+  it("shows community vote for comparison posts and casts vote", async () => {
+    mockUseAuth.mockReturnValue(authorAuth());
+    mockFetchPost.mockResolvedValue(
+      makePost({
+        type: "comparison",
+        offerSnapshots: JSON.stringify([
+          { label: "Option A", company: "A" },
+          { label: "Option B", company: "B" },
+        ]),
+      }),
+    );
+    mockFetchVoteTally.mockResolvedValue({
+      postId: 1,
+      totalVotes: 0,
+      tally: {},
+    });
+    mockCastVote.mockResolvedValue({
+      postId: 1,
+      totalVotes: 1,
+      tally: { "0": 1 },
+    });
+    const user = userEvent.setup();
+    render(<PostDetail />);
+
+    await waitFor(() => expect(screen.getByText("Community Vote")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /option a/i }));
+    await waitFor(() =>
+      expect(mockCastVote).toHaveBeenCalledWith("tok", 1, { selectedOfferIndex: 0 }),
+    );
+  });
 });

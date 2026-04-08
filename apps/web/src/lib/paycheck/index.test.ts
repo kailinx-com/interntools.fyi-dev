@@ -150,5 +150,67 @@ describe("paycheck utilities", () => {
       expect(result.biweekly[0].netPay).toBeCloseTo(result.summary.netTotal, 6);
       expect(result.monthly[0].netPay).toBeCloseTo(result.summary.netTotal, 6);
     });
+
+    it("returns zero gross and zero effective ratios when the date range is empty", () => {
+      const config = {
+        startDate: "2026-05-10",
+        endDate: "2026-05-09",
+        state: "TX",
+        hourlyRate: 50,
+        workHoursPerDay: 8,
+        workDaysPerWeek: 5,
+        stipendPerWeek: 0,
+        residency: "resident",
+        visaType: "F1",
+        arrivalYear: 2025,
+        ficaMode: "exempt",
+      } satisfies PaycheckConfig;
+
+      const result = calculatePayroll(config);
+
+      expect(result.summary.totalGross).toBe(0);
+      expect(result.summary.netTotal).toBe(0);
+      expect(result.weekly).toHaveLength(0);
+    });
+
+    it("computes WA SDI when state omits income tax but includes sr/sc", () => {
+      const config = {
+        startDate: "2026-05-04",
+        endDate: "2026-05-04",
+        state: "WA",
+        hourlyRate: 100,
+        workHoursPerDay: 8,
+        workDaysPerWeek: 5,
+        stipendPerWeek: 0,
+        residency: "resident",
+        visaType: "Other",
+        arrivalYear: 2020,
+        ficaMode: "exempt",
+      } satisfies PaycheckConfig;
+
+      const result = calculatePayroll(config);
+      expect(result.summary.totalSdi).toBeGreaterThan(0);
+    });
+
+    it("labels weekly periods when the range starts on Sunday", () => {
+      const config = {
+        startDate: "2026-05-03",
+        endDate: "2026-05-08",
+        state: "TX",
+        hourlyRate: 10,
+        workHoursPerDay: 8,
+        workDaysPerWeek: 5,
+        stipendPerWeek: 0,
+        residency: "resident",
+        visaType: "F1",
+        arrivalYear: 2025,
+        ficaMode: "exempt",
+      } satisfies PaycheckConfig;
+
+      const result = calculatePayroll(config);
+      expect(result.weekly[0]?.label).toBe("Week 1");
+      expect(result.biweekly[0]?.label).toBe("Biweek 1");
+      expect(result.monthly[0]?.label).toBe("Month 1");
+    });
   });
 });

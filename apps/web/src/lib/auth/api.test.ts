@@ -1,4 +1,76 @@
 import { apiRequest } from "@/lib/auth/http";
+import {
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+  registerUser,
+  updateProfile,
+} from "@/lib/auth/api";
+
+jest.mock("@/lib/auth/http", () => ({
+  apiRequest: jest.fn(),
+}));
+
+describe("auth api wrappers", () => {
+  const mockedApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedApiRequest.mockResolvedValue({} as never);
+  });
+
+  it("calls register endpoint", async () => {
+    const payload = {
+      username: "user",
+      firstName: "First",
+      lastName: "Last",
+      email: "user@example.com",
+      password: "password123",
+      role: "STUDENT" as const,
+    };
+    await registerUser(payload);
+    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/register", {
+      method: "POST",
+      body: payload,
+    });
+  });
+
+  it("calls login endpoint", async () => {
+    const payload = { identifier: "user@example.com", password: "password123" };
+    await loginUser(payload);
+    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/login", {
+      method: "POST",
+      body: payload,
+    });
+  });
+
+  it("calls current user endpoint with token", async () => {
+    await getCurrentUser("tok");
+    expect(mockedApiRequest).toHaveBeenCalledWith("/me", {
+      method: "GET",
+      token: "tok",
+    });
+  });
+
+  it("calls logout endpoint with token", async () => {
+    await logoutUser("tok");
+    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/logout", {
+      method: "POST",
+      token: "tok",
+    });
+  });
+
+  it("calls update profile endpoint with payload", async () => {
+    const payload = { username: "new-name", currentPassword: "current", newPassword: "next" };
+    await updateProfile("tok", payload);
+    expect(mockedApiRequest).toHaveBeenCalledWith("/me", {
+      method: "PATCH",
+      token: "tok",
+      body: payload,
+    });
+  });
+});
+import { apiRequest } from "@/lib/auth/http";
 import { getCurrentUser, loginUser, logoutUser, registerUser } from "./api";
 // Plain imports (no `import type`) so a Jest runner using Babel without TS
 // `import type` support can still parse this file.

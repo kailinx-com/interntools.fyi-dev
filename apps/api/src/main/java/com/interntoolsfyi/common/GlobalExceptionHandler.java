@@ -16,6 +16,10 @@ public class GlobalExceptionHandler {
       return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
     }
 
+    if ("Current password is incorrect".equals(message)) {
+      return ResponseEntity.status(422).body(Map.of("message", message));
+    }
+
     if (message != null && message.contains("Invalid username or password")) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", message));
     }

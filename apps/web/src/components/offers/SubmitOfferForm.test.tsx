@@ -68,7 +68,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("clicking Publish submits with status=published and redirects to post", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await fillAcceptanceForm(user);
@@ -84,7 +84,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("clicking Save Draft submits with status=draft and redirects to /me", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await fillAcceptanceForm(user);
@@ -100,7 +100,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("shows validation error when title is missing (Publish)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await user.click(screen.getByRole("button", { name: /publish/i }));
@@ -110,7 +110,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("shows validation error when title is missing (Save Draft)", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await user.click(screen.getByRole("button", { name: /save draft/i }));
@@ -120,7 +120,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("shows validation error when company is missing for acceptance type", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await user.type(screen.getByLabelText(/title/i), "My Post");
@@ -134,7 +134,7 @@ describe("SubmitOfferForm", () => {
     let resolveCreate!: (v: unknown) => void;
     mockCreatePost.mockReturnValue(new Promise((res) => { resolveCreate = res; }));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await fillAcceptanceForm(user);
@@ -151,7 +151,7 @@ describe("SubmitOfferForm", () => {
     let resolveCreate!: (v: unknown) => void;
     mockCreatePost.mockReturnValue(new Promise((res) => { resolveCreate = res; }));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await fillAcceptanceForm(user);
@@ -167,7 +167,7 @@ describe("SubmitOfferForm", () => {
   it("shows error message when createPost fails", async () => {
     mockCreatePost.mockRejectedValue(new Error("Server error"));
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await fillAcceptanceForm(user);
@@ -177,7 +177,7 @@ describe("SubmitOfferForm", () => {
   });
 
   it("Comparison type requires at least 2 offers", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<SubmitOfferForm />);
 
     await user.type(screen.getByLabelText(/title/i), "My Comparison");

@@ -79,6 +79,7 @@ export type PostSummary = {
   authorUsername: string;
   publishedAt: string | null;
   createdAt: string;
+  bookmarked: boolean;
 };
 
 /** Matches backend `PostDetailResponse` */
@@ -95,6 +96,7 @@ export type PostDetailResponse = {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  bookmarked: boolean;
 };
 
 export type PostRequest = {
@@ -110,6 +112,7 @@ export type PostRequest = {
 export type CommentResponse = {
   id: number;
   postId: number;
+  parentId: number | null;
   authorUsername: string;
   body: string;
   editedAt: string | null;
@@ -118,6 +121,7 @@ export type CommentResponse = {
 
 export type CommentRequest = {
   body: string;
+  parentId?: number;
 };
 
 export type VoteTallyResponse = {
@@ -222,6 +226,18 @@ export async function updateComment(token: string, commentId: number, body: Comm
 
 export async function deleteComment(token: string, commentId: number): Promise<void> {
   await apiRequest<void>(`/comments/${commentId}`, { method: "DELETE", token });
+}
+
+export async function bookmarkPost(token: string, postId: number): Promise<void> {
+  await apiRequest<void>(`/posts/${postId}/bookmark`, { method: "POST", token });
+}
+
+export async function unbookmarkPost(token: string, postId: number): Promise<void> {
+  await apiRequest<void>(`/posts/${postId}/bookmark`, { method: "DELETE", token });
+}
+
+export async function fetchBookmarkedPosts(token: string): Promise<PostSummary[]> {
+  return apiRequest<PostSummary[]>("/posts/bookmarks", { token });
 }
 
 export async function fetchVoteTally(postId: number): Promise<VoteTallyResponse> {

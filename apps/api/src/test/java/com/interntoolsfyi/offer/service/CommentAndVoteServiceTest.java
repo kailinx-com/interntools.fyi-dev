@@ -54,6 +54,18 @@ class CommentAndVoteServiceTest {
   class ListCommentsTests {
 
     @Test
+    @DisplayName("returns empty list when the post has no comments")
+    void returnsEmptyWhenPostHasNoComments() {
+      User author = createUser("poster", 1L);
+      Post post = createPublishedPost(author, 10L);
+
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(commentRepository.findByPostAndDeletedFalseOrderByCreatedAtAsc(post)).thenReturn(List.of());
+
+      assertThat(commentAndVoteService.listComments(10L)).isEmpty();
+    }
+
+    @Test
     @DisplayName("returns non-deleted comments in creation order for a published post")
     void returnsNonDeletedCommentsInCreationOrderForAPublishedPost() {
       User author = createUser("poster", 1L);
@@ -73,6 +85,15 @@ class CommentAndVoteServiceTest {
       assertThat(result.get(0).authorUsername()).isEqualTo("commenter");
       assertThat(result.get(0).postId()).isEqualTo(10L);
       assertThat(result.get(1).body()).isEqualTo("Second comment");
+    }
+
+    @Test
+    @DisplayName("returns unauthorized when deleting a comment without authentication")
+    void returnsUnauthorizedWhenDeletingCommentWithoutAuth() {
+      assertThatThrownBy(() -> commentAndVoteService.deleteComment(null, 5L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
     }
 
     @Test
@@ -112,7 +133,7 @@ class CommentAndVoteServiceTest {
       Post post = createPublishedPost(author, 10L);
       User commenter = createUser("commenter", 2L);
       Authentication auth = authenticatedUser(commenter.getUsername());
-      CommentRequest request = new CommentRequest("Great post!");
+      CommentRequest request = new CommentRequest("Great post!", null);
       Instant createdAt = Instant.parse("2026-04-01T12:00:00Z");
 
       when(userRepository.findByUsername(commenter.getUsername())).thenReturn(Optional.of(commenter));
@@ -155,7 +176,7 @@ class CommentAndVoteServiceTest {
       when(postRepository.findById(20L)).thenReturn(Optional.of(draft));
 
       assertThatThrownBy(
-              () -> commentAndVoteService.createComment(auth, 20L, new CommentRequest("Hello")))
+              () -> commentAndVoteService.createComment(auth, 20L, new CommentRequest("Hello", null)))
           .isInstanceOfSatisfying(
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
@@ -165,16 +186,93 @@ class CommentAndVoteServiceTest {
     @DisplayName("returns unauthorized when no authentication is provided")
     void returnsUnauthorizedWhenNoAuthenticationIsProvided() {
       assertThatThrownBy(
-              () -> commentAndVoteService.createComment(null, 10L, new CommentRequest("Hello")))
+              () -> commentAndVoteService.createComment(null, 10L, new CommentRequest("Hello", null)))
           .isInstanceOfSatisfying(
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("returns unauthorized when authentication is present but not authenticated")
+    void returnsUnauthorizedWhenAuthenticationNotAuthenticated() {
+      Authentication auth = org.mockito.Mockito.mock(Authentication.class);
+      when(auth.isAuthenticated()).thenReturn(false);
+
+      assertThatThrownBy(
+              () -> commentAndVoteService.createComment(auth, 10L, new CommentRequest("Hello", null)))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("returns not found when parent comment id does not exist")
+    void returnsNotFoundWhenParentCommentMissing() {
+      User author = createUser("poster", 1L);
+      Post post = createPublishedPost(author, 10L);
+      User commenter = createUser("commenter", 2L);
+      Authentication auth = authenticatedUser(commenter.getUsername());
+
+      when(userRepository.findByUsername(commenter.getUsername())).thenReturn(Optional.of(commenter));
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(commentRepository.findById(99L)).thenReturn(Optional.empty());
+
+      assertThatThrownBy(
+              () ->
+                  commentAndVoteService.createComment(
+                      auth, 10L, new CommentRequest("Reply", 99L)))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> {
+                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                assertThat(ex.getReason()).isEqualTo("Parent comment not found");
+              });
+    }
+
+    @Test
+    @DisplayName("links a reply comment to its parent when parentId is provided")
+    void linksReplyToParentWhenParentIdProvided() {
+      User author = createUser("poster", 1L);
+      Post post = createPublishedPost(author, 10L);
+      User commenter = createUser("commenter", 2L);
+      Authentication auth = authenticatedUser(commenter.getUsername());
+      Comment parent = createComment(post, commenter, 3L, "Parent body");
+
+      when(userRepository.findByUsername(commenter.getUsername())).thenReturn(Optional.of(commenter));
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(commentRepository.findById(3L)).thenReturn(Optional.of(parent));
+      when(commentRepository.save(any(Comment.class)))
+          .thenAnswer(
+              inv -> {
+                Comment saved = inv.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 7L);
+                ReflectionTestUtils.setField(saved, "createdAt", Instant.parse("2026-04-02T00:00:00Z"));
+                return saved;
+              });
+
+      CommentResponse response =
+          commentAndVoteService.createComment(auth, 10L, new CommentRequest("Reply text", 3L));
+
+      ArgumentCaptor<Comment> captor = ArgumentCaptor.forClass(Comment.class);
+      verify(commentRepository).save(captor.capture());
+      assertThat(captor.getValue().getParent()).isSameAs(parent);
+      assertThat(response.parentId()).isEqualTo(3L);
     }
   }
 
   @Nested
   @DisplayName("updateComment")
   class UpdateCommentTests {
+
+    @Test
+    @DisplayName("returns unauthorized when updating a comment without authentication")
+    void returnsUnauthorizedWhenUpdatingCommentWithoutAuth() {
+      assertThatThrownBy(
+              () -> commentAndVoteService.updateComment(null, 5L, new CommentRequest("X", null)))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
 
     @Test
     @DisplayName("updates the body and sets editedAt on a comment owned by the current user")
@@ -184,7 +282,7 @@ class CommentAndVoteServiceTest {
       User poster = createUser("poster", 2L);
       Post post = createPublishedPost(poster, 10L);
       Comment comment = createComment(post, user, 5L, "Original body");
-      CommentRequest request = new CommentRequest("Updated body");
+      CommentRequest request = new CommentRequest("Updated body", null);
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(commentRepository.findByIdAndUser(5L, user)).thenReturn(Optional.of(comment));
@@ -206,7 +304,7 @@ class CommentAndVoteServiceTest {
       when(commentRepository.findByIdAndUser(99L, user)).thenReturn(Optional.empty());
 
       assertThatThrownBy(
-              () -> commentAndVoteService.updateComment(auth, 99L, new CommentRequest("X")))
+              () -> commentAndVoteService.updateComment(auth, 99L, new CommentRequest("X", null)))
           .isInstanceOfSatisfying(
               ResponseStatusException.class,
               ex -> {
@@ -280,6 +378,25 @@ class CommentAndVoteServiceTest {
     }
 
     @Test
+    @DisplayName("groups votes with null snapshot id and null index under key 'null'")
+    void groupsVotesWithNullSnapshotAndIndex() {
+      User poster = createUser("poster", 1L);
+      Post post = createPublishedPost(poster, 10L);
+      CommunityPreferenceVote v = new CommunityPreferenceVote();
+      v.setPost(post);
+      v.setUser(createUser("u", 2L));
+      v.setSelectedOfferSnapshotId(null);
+      v.setSelectedOfferIndex(null);
+
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(voteRepository.findByPost(post)).thenReturn(List.of(v));
+
+      VoteTallyResponse tally = commentAndVoteService.getVoteTally(10L);
+
+      assertThat(tally.tally()).containsEntry("null", 1L);
+    }
+
+    @Test
     @DisplayName("returns tally grouped by index string when votes reference array indices")
     void returnsTallyGroupedByIndexStringWhenVotesReferenceArrayIndices() {
       User poster = createUser("poster", 1L);
@@ -331,6 +448,31 @@ class CommentAndVoteServiceTest {
   @Nested
   @DisplayName("upsertVote")
   class UpsertVoteTests {
+
+    @Test
+    @DisplayName("creates a vote using only selectedOfferIndex when snapshot id is null")
+    void createsVoteUsingIndexOnly() {
+      User poster = createUser("poster", 1L);
+      Post post = createPublishedPost(poster, 10L);
+      User voter = createUser("voter", 2L);
+      Authentication auth = authenticatedUser(voter.getUsername());
+      VoteRequest request = new VoteRequest(null, 2);
+
+      when(userRepository.findByUsername(voter.getUsername())).thenReturn(Optional.of(voter));
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(voteRepository.findByPostAndUser(post, voter)).thenReturn(Optional.empty());
+      when(voteRepository.save(any(CommunityPreferenceVote.class)))
+          .thenAnswer(inv -> inv.getArgument(0));
+      when(voteRepository.findByPost(post)).thenReturn(List.of());
+
+      commentAndVoteService.upsertVote(auth, 10L, request);
+
+      ArgumentCaptor<CommunityPreferenceVote> captor =
+          ArgumentCaptor.forClass(CommunityPreferenceVote.class);
+      verify(voteRepository).save(captor.capture());
+      assertThat(captor.getValue().getSelectedOfferIndex()).isEqualTo(2);
+      assertThat(captor.getValue().getSelectedOfferSnapshotId()).isNull();
+    }
 
     @Test
     @DisplayName("creates a new vote when no previous vote exists for the user")

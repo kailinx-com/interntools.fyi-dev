@@ -35,7 +35,7 @@ export default function HomePage() {
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link
               href="/signup"
-              className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg text-sm font-semibold shadow hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg text-sm font-semibold shadow hover:bg-primary/90 transition-colors"
             >
               Get started for free
               <ArrowRight className="size-4" />

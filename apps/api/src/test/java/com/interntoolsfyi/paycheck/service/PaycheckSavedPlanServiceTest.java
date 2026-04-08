@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interntoolsfyi.paycheck.dto.PaycheckConfigDto;
 import com.interntoolsfyi.paycheck.dto.PlanDetailResponse;
 import com.interntoolsfyi.paycheck.dto.PlanSummaryResponse;
@@ -56,6 +58,55 @@ class PaycheckSavedPlanServiceTest {
   class CreatePlanTests {
 
     @Test
+    @DisplayName("returns 500 when JSON serialization fails on config")
+    void returnsServerErrorWhenSerializationFailsOnConfig() throws Exception {
+      User user = createUser("ser-fail");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      SavePlanRequest request = createRequest("x");
+
+      ObjectMapper badMapper = org.mockito.Mockito.mock(ObjectMapper.class);
+      when(badMapper.writeValueAsString(org.mockito.ArgumentMatchers.any()))
+          .thenThrow(new JsonProcessingException("fail") {});
+
+      ReflectionTestUtils.setField(paycheckSavedPlanService, "objectMapper", badMapper);
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.createPlan(authentication, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> {
+                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                assertThat(ex.getReason()).contains("Unable to serialize config");
+              });
+    }
+
+    @Test
+    @DisplayName("returns 500 when JSON serialization fails on planner data")
+    void returnsServerErrorWhenSerializationFailsOnPlannerData() throws Exception {
+      User user = createUser("ser-fail-planner");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      SavePlanRequest request = createRequest("y");
+
+      ObjectMapper badMapper = org.mockito.Mockito.mock(ObjectMapper.class);
+      when(badMapper.writeValueAsString(org.mockito.ArgumentMatchers.any()))
+          .thenReturn("{}")
+          .thenThrow(new JsonProcessingException("fail") {});
+
+      ReflectionTestUtils.setField(paycheckSavedPlanService, "objectMapper", badMapper);
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.createPlan(authentication, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> {
+                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                assertThat(ex.getReason()).contains("Unable to serialize plannerData");
+              });
+    }
+
+    @Test
     @DisplayName("persists serialized config and planner data and returns the created detail response")
     void persistsSerializedConfigAndPlannerDataAndReturnsTheCreatedDetailResponse() {
       User user = createUser("planner");
@@ -92,6 +143,30 @@ class PaycheckSavedPlanServiceTest {
       assertThat(response.updatedAt()).isEqualTo(createdAt);
       assertThat(response.config()).usingRecursiveComparison().isEqualTo(request.config());
       assertThat(response.plannerData()).usingRecursiveComparison().isEqualTo(request.plannerData());
+    }
+
+    @Test
+    @DisplayName("normalizes null expense list in planner data")
+    void normalizesNullExpenseListInPlannerData() {
+      User user = createUser("null-expenses");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      SavePlanRequest request =
+          new SavePlanRequest("plan", createConfig(), new PlannerDataDto(null));
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(paycheckSavedPlanRepository.save(any(PaycheckSavedPlan.class)))
+          .thenAnswer(
+              invocation -> {
+                PaycheckSavedPlan saved = invocation.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 77L);
+                ReflectionTestUtils.setField(saved, "createdAt", Instant.parse("2026-03-29T10:15:30Z"));
+                ReflectionTestUtils.setField(saved, "updatedAt", Instant.parse("2026-03-29T10:15:30Z"));
+                return saved;
+              });
+
+      PlanDetailResponse response = paycheckSavedPlanService.createPlan(authentication, request);
+
+      assertThat(response.plannerData().expenses()).isEmpty();
     }
 
     @Test
@@ -150,6 +225,26 @@ class PaycheckSavedPlanServiceTest {
   class UpdatePlanTests {
 
     @Test
+    @DisplayName("returns 404 when the plan id is not found for the current user")
+    void returnsNotFoundWhenPlanDoesNotExist() {
+      User user = createUser("no-plan");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      SavePlanRequest request = createRequest("does not matter");
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(paycheckSavedPlanRepository.findByIdAndUser(404L, user)).thenReturn(Optional.empty());
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.updatePlan(authentication, 404L, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> {
+                assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+                assertThat(ex.getReason()).contains("Saved plan not found with id: 404");
+              });
+      verify(paycheckSavedPlanRepository, never()).save(any(PaycheckSavedPlan.class));
+    }
+
+    @Test
     @DisplayName("updates an owned plan and returns the updated detail response")
     void updatesAnOwnedPlanAndReturnsTheUpdatedDetailResponse() {
       User user = createUser("updater");
@@ -184,6 +279,69 @@ class PaycheckSavedPlanServiceTest {
   @Nested
   @DisplayName("getPlan")
   class GetPlanTests {
+
+    @Test
+    @DisplayName("returns 500 when config JSON is empty")
+    void returnsServerErrorWhenConfigJsonIsEmptyString() {
+      User user = createUser("empty-config");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      PaycheckSavedPlan plan = createSavedPlan(user, 97L, "Empty config", Instant.parse("2026-03-29T11:30:00Z"));
+      plan.setConfigJson("");
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(paycheckSavedPlanRepository.findByIdAndUser(97L, user)).thenReturn(Optional.of(plan));
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.getPlan(authentication, 97L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
+    }
+
+    @Test
+    @DisplayName("returns 500 when stored plannerData JSON is invalid")
+    void returnsServerErrorWhenPlannerDataJsonIsInvalid() {
+      User user = createUser("bad-planner-json");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      PaycheckSavedPlan plan = createSavedPlan(user, 98L, "Broken planner", Instant.parse("2026-03-29T11:30:00Z"));
+      plan.setPlannerDataJson("not-valid-json{{{");
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(paycheckSavedPlanRepository.findByIdAndUser(98L, user)).thenReturn(Optional.of(plan));
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.getPlan(authentication, 98L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              exception -> {
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                assertThat(exception.getReason()).contains("Unable to read plannerData");
+              });
+    }
+
+    @Test
+    @DisplayName("returns 500 when stored config JSON is invalid")
+    void returnsServerErrorWhenConfigJsonIsInvalid() {
+      User user = createUser("bad-json");
+      Authentication authentication = authenticatedUser(user.getUsername());
+      PaycheckSavedPlan plan = new PaycheckSavedPlan();
+      plan.setName("Broken");
+      plan.setUser(user);
+      plan.setConfigJson("not-json-at-all{{{");
+      plan.setPlannerDataJson("{\"expenses\":[]}");
+      ReflectionTestUtils.setField(plan, "id", 99L);
+      ReflectionTestUtils.setField(plan, "createdAt", Instant.parse("2026-03-29T11:30:00Z"));
+      ReflectionTestUtils.setField(plan, "updatedAt", Instant.parse("2026-03-29T11:30:00Z"));
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(paycheckSavedPlanRepository.findByIdAndUser(99L, user)).thenReturn(Optional.of(plan));
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.getPlan(authentication, 99L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              exception -> {
+                assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                assertThat(exception.getReason()).contains("Unable to read config");
+              });
+    }
 
     @Test
     @DisplayName("returns the detail response for a plan owned by the current user")
@@ -223,6 +381,47 @@ class PaycheckSavedPlanServiceTest {
       paycheckSavedPlanService.deletePlan(authentication, 66L);
 
       verify(paycheckSavedPlanRepository).delete(plan);
+    }
+  }
+
+  @Nested
+  @DisplayName("requireCurrentUser")
+  class RequireCurrentUserTests {
+
+    @Test
+    @DisplayName("getAllPlans throws when authentication is null")
+    void getAllPlansUnauthorizedWhenNull() {
+      assertThatThrownBy(() -> paycheckSavedPlanService.getAllPlans(null))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("deletePlan throws when authentication is not authenticated")
+    void deletePlanUnauthorizedWhenNotAuthenticated() {
+      Authentication authentication = org.mockito.Mockito.mock(Authentication.class);
+      when(authentication.isAuthenticated()).thenReturn(false);
+
+      assertThatThrownBy(() -> paycheckSavedPlanService.deletePlan(authentication, 1L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("createPlan throws when authenticated user is not in the database")
+    void createPlanWhenUserMissingFromDatabase() {
+      Authentication authentication = authenticatedUser("ghost");
+      when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+      assertThatThrownBy(
+              () ->
+                  paycheckSavedPlanService.createPlan(
+                      authentication, new SavePlanRequest("n", createConfig(), createPlannerData())))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getReason()).isEqualTo("Authenticated user not found"));
     }
   }
 

@@ -23,6 +23,9 @@ import {
   fetchVoteTally,
   castVote,
   deleteVote,
+  bookmarkPost,
+  unbookmarkPost,
+  fetchBookmarkedPosts,
 } from "./api";
 
 jest.mock("@/lib/auth/http", () => ({
@@ -268,6 +271,34 @@ describe("offers api client", () => {
 
       await deleteVote("tok", 2);
       expect(mockedApiRequest).toHaveBeenCalledWith("/posts/2/vote", { method: "DELETE", token: "tok" });
+    });
+  });
+
+  describe("bookmarks", () => {
+    it("bookmarks a post", async () => {
+      mockedApiRequest.mockResolvedValue(undefined);
+      await bookmarkPost("tok", 8);
+      expect(mockedApiRequest).toHaveBeenCalledWith("/posts/8/bookmark", {
+        method: "POST",
+        token: "tok",
+      });
+    });
+
+    it("unbookmarks a post", async () => {
+      mockedApiRequest.mockResolvedValue(undefined);
+      await unbookmarkPost("tok", 8);
+      expect(mockedApiRequest).toHaveBeenCalledWith("/posts/8/bookmark", {
+        method: "DELETE",
+        token: "tok",
+      });
+    });
+
+    it("fetches bookmarked posts", async () => {
+      mockedApiRequest.mockResolvedValue([{ id: 1 }]);
+      await fetchBookmarkedPosts("tok");
+      expect(mockedApiRequest).toHaveBeenCalledWith("/posts/bookmarks", {
+        token: "tok",
+      });
     });
   });
 });

@@ -132,6 +132,7 @@ export function SubmitOfferForm() {
         body: notes.trim() || null,
         offerSnapshots: JSON.stringify([
           {
+            label: postType, // "Acceptance" or "Rejection"
             company: singleCompany.trim(),
             role: singleRole.trim(),
             compensation: compensation.trim(),

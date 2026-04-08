@@ -1,11 +1,32 @@
 import {
+  deleteCalculatorConfig,
+  deletePlannerDocument,
   formatSavedItemTimestamp,
+  getCalculatorConfig,
+  getPlannerDocument,
+  listCalculatorConfigs,
+  listPlannerDocuments,
   normalizeLoadedCalculatorConfig,
   normalizeLoadedPlannerData,
   normalizeLoadedPlannerDocument,
+  normalizeSavedName,
+  saveCalculatorConfig,
+  savePlannerDocument,
 } from "./api";
+import { apiRequest } from "@/lib/auth/http";
+import { DEFAULT_PAYCHECK_CONFIG } from "./index";
+
+jest.mock("@/lib/auth/http", () => ({
+  apiRequest: jest.fn(),
+}));
 
 describe("paycheck api", () => {
+  const mockedApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("formatSavedItemTimestamp", () => {
     it("returns a fallback label for nullish timestamps", () => {
       expect(formatSavedItemTimestamp(null)).toBe("Saved recently");
@@ -14,6 +35,14 @@ describe("paycheck api", () => {
 
     it("returns a fallback label for blank timestamps", () => {
       expect(formatSavedItemTimestamp("   ")).toBe("Saved recently");
+    });
+
+    it("handles timezone-less iso values", () => {
+      expect(formatSavedItemTimestamp("2026-03-29T10:15:30")).not.toBe("Saved recently");
+    });
+
+    it("returns fallback for invalid numeric timestamp", () => {
+      expect(formatSavedItemTimestamp("999999999999999999999")).toBe("Saved recently");
     });
   });
 
@@ -122,6 +151,87 @@ describe("paycheck api", () => {
             },
           ],
         },
+      });
+    });
+  });
+
+  describe("normalizeSavedName", () => {
+    it("trims valid names", () => {
+      expect(normalizeSavedName("  Summer Plan  ")).toBe("Summer Plan");
+    });
+
+    it("throws for blank and too-long names", () => {
+      expect(() => normalizeSavedName("   ")).toThrow("Name is required.");
+      expect(() => normalizeSavedName("a".repeat(101))).toThrow(
+        "Name must be 100 characters or fewer.",
+      );
+    });
+  });
+
+  describe("api wrappers", () => {
+    it("save/list/get/delete calculator config wrappers", async () => {
+      mockedApiRequest.mockResolvedValueOnce({
+        id: 1,
+        name: "A",
+        createdAt: "2026-01-01T00:00:00Z",
+        config: DEFAULT_PAYCHECK_CONFIG,
+      } as never);
+      await saveCalculatorConfig("tok", { name: " A ", config: DEFAULT_PAYCHECK_CONFIG });
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/scenarios", expect.objectContaining({
+        method: "POST",
+        token: "tok",
+      }));
+
+      mockedApiRequest.mockResolvedValueOnce([] as never);
+      await listCalculatorConfigs("tok");
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/scenarios", { token: "tok" });
+
+      mockedApiRequest.mockResolvedValueOnce({
+        id: 1,
+        name: "A",
+        createdAt: "2026-01-01T00:00:00Z",
+        config: DEFAULT_PAYCHECK_CONFIG,
+      } as never);
+      await getCalculatorConfig("tok", 1);
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/scenarios/1", { token: "tok" });
+
+      mockedApiRequest.mockResolvedValueOnce(undefined as never);
+      await deleteCalculatorConfig("tok", 1);
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/scenarios/1", {
+        method: "DELETE",
+        token: "tok",
+      });
+    });
+
+    it("save/list/get/delete planner wrappers", async () => {
+      mockedApiRequest.mockResolvedValueOnce({
+        id: "p1",
+        name: "Planner",
+        data: { expenses: [] },
+      } as never);
+      await savePlannerDocument("tok", { name: " Planner ", plannerData: { expenses: [] } });
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/planner", expect.objectContaining({
+        method: "POST",
+        token: "tok",
+      }));
+
+      mockedApiRequest.mockResolvedValueOnce([] as never);
+      await listPlannerDocuments("tok");
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/planner", { token: "tok" });
+
+      mockedApiRequest.mockResolvedValueOnce({
+        id: "p1",
+        name: "Planner",
+        data: { expenses: [] },
+      } as never);
+      await getPlannerDocument("tok", "p1");
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/planner/p1", { token: "tok" });
+
+      mockedApiRequest.mockResolvedValueOnce(undefined as never);
+      await deletePlannerDocument("tok", "p1");
+      expect(mockedApiRequest).toHaveBeenCalledWith("/paycheck/planner/p1", {
+        method: "DELETE",
+        token: "tok",
       });
     });
   });

@@ -3,6 +3,7 @@ package com.interntoolsfyi.offer.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import com.interntoolsfyi.offer.model.PostStatus;
 import com.interntoolsfyi.offer.model.PostType;
 import com.interntoolsfyi.offer.model.PostVisibility;
 import com.interntoolsfyi.offer.repository.PostRepository;
+import com.interntoolsfyi.offer.repository.SavedPostRepository;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
@@ -40,6 +42,7 @@ import org.springframework.web.server.ResponseStatusException;
 class PostServiceTest {
 
   @Mock private PostRepository postRepository;
+  @Mock private SavedPostRepository savedPostRepository;
   @Mock private UserRepository userRepository;
 
   @InjectMocks private PostService postService;
@@ -62,7 +65,7 @@ class PostServiceTest {
       when(postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable))
           .thenReturn(page);
 
-      Page<PostSummaryResponse> result = postService.listPublishedPosts(pageable);
+      Page<PostSummaryResponse> result = postService.listPublishedPosts(null, pageable);
 
       assertThat(result.getContent()).hasSize(1);
       assertThat(result.getContent().get(0).id()).isEqualTo(10L);
@@ -80,13 +83,92 @@ class PostServiceTest {
       when(postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable))
           .thenReturn(emptyPage);
 
-      assertThat(postService.listPublishedPosts(pageable).getContent()).isEmpty();
+      assertThat(postService.listPublishedPosts(null, pageable).getContent()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("treats bookmark as false when principal is missing from user repository")
+    void bookmarkFalseWhenPrincipalMissingFromRepository() {
+      User author = createUser("author", 1L);
+      Authentication auth = authenticatedUser("ghost");
+      Post post =
+          createPost(
+              author, 11L, "X", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<Post> page = new PageImpl<>(List.of(post), pageable, 1);
+
+      when(postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable))
+          .thenReturn(page);
+      when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+      Page<PostSummaryResponse> result = postService.listPublishedPosts(auth, pageable);
+
+      assertThat(result.getContent().get(0).bookmarked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("marks post as not bookmarked when user exists but has not saved the post")
+    void marksPostAsNotBookmarkedWhenUserExistsWithoutSavedPost() {
+      User author = createUser("author", 1L);
+      User viewer = createUser("viewer", 2L);
+      Authentication auth = authenticatedUser(viewer.getUsername());
+      Post post =
+          createPost(
+              author, 12L, "Not saved", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<Post> page = new PageImpl<>(List.of(post), pageable, 1);
+
+      when(postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable))
+          .thenReturn(page);
+      when(userRepository.findByUsername(viewer.getUsername())).thenReturn(Optional.of(viewer));
+      when(savedPostRepository.existsByPostAndUser(post, viewer)).thenReturn(false);
+
+      Page<PostSummaryResponse> result = postService.listPublishedPosts(auth, pageable);
+
+      assertThat(result.getContent().get(0).bookmarked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("marks post as bookmarked for authenticated user with saved post")
+    void marksPostAsBookmarkedForAuthenticatedUser() {
+      User author = createUser("author", 1L);
+      User viewer = createUser("viewer", 2L);
+      Authentication auth = authenticatedUser(viewer.getUsername());
+      Post post =
+          createPost(
+              author, 11L, "Bookmarked", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<Post> page = new PageImpl<>(List.of(post), pageable, 1);
+
+      when(postRepository.findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable))
+          .thenReturn(page);
+      when(userRepository.findByUsername(viewer.getUsername())).thenReturn(Optional.of(viewer));
+      when(savedPostRepository.existsByPostAndUser(post, viewer)).thenReturn(true);
+
+      Page<PostSummaryResponse> result = postService.listPublishedPosts(auth, pageable);
+
+      assertThat(result.getContent()).hasSize(1);
+      assertThat(result.getContent().get(0).bookmarked()).isTrue();
     }
   }
 
   @Nested
   @DisplayName("listMyPosts")
   class ListMyPostsTests {
+
+    @Test
+    @DisplayName("returns empty list when the user has no posts")
+    void returnsEmptyWhenUserHasNoPosts() {
+      User user = createUser("author", 1L);
+      Authentication auth = authenticatedUser(user.getUsername());
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(postRepository.findByAuthorOrderByCreatedAtDesc(user)).thenReturn(List.of());
+
+      assertThat(postService.listMyPosts(auth)).isEmpty();
+    }
 
     @Test
     @DisplayName("returns all statuses of posts belonging to the authenticated user")
@@ -120,11 +202,79 @@ class PostServiceTest {
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
     }
+
+    @Test
+    @DisplayName("returns unauthorized when authenticated principal is missing from repository")
+    void returnsUnauthorizedWhenAuthenticatedPrincipalIsMissingFromRepository() {
+      Authentication auth = authenticatedUser("ghost-user");
+      when(userRepository.findByUsername("ghost-user")).thenReturn(Optional.empty());
+
+      assertThatThrownBy(() -> postService.listMyPosts(auth))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
   }
 
   @Nested
   @DisplayName("getPost")
   class GetPostTests {
+
+    @Test
+    @DisplayName("returns detail for a public published post when authentication is not authenticated")
+    void returnsDetailWhenAuthenticationNotAuthenticated() {
+      User author = createUser("author", 1L);
+      Post post =
+          createPost(
+              author, 10L, "Public post", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      Authentication auth = org.mockito.Mockito.mock(Authentication.class);
+      when(auth.isAuthenticated()).thenReturn(false);
+
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+
+      PostDetailResponse response = postService.getPost(auth, 10L);
+
+      assertThat(response.bookmarked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("returns detail for a public published post when principal is missing from user repository")
+    void returnsDetailWhenAuthenticatedButUserRecordMissing() {
+      User author = createUser("author", 1L);
+      Post post =
+          createPost(
+              author, 10L, "Public post", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      Authentication auth = authenticatedUser("ghost");
+
+      when(postRepository.findById(10L)).thenReturn(Optional.of(post));
+      when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+      PostDetailResponse response = postService.getPost(auth, 10L);
+
+      assertThat(response.bookmarked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("marks bookmarked when viewer has saved the public published post")
+    void marksBookmarkedOnPublicPostForViewer() {
+      User author = createUser("author", 1L);
+      User viewer = createUser("viewer", 2L);
+      Authentication auth = authenticatedUser(viewer.getUsername());
+      Post post =
+          createPost(
+              author, 15L, "Bookmarked detail", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+
+      when(postRepository.findById(15L)).thenReturn(Optional.of(post));
+      when(userRepository.findByUsername(viewer.getUsername())).thenReturn(Optional.of(viewer));
+      when(savedPostRepository.existsByPostAndUser(post, viewer)).thenReturn(true);
+
+      PostDetailResponse response = postService.getPost(auth, 15L);
+
+      assertThat(response.bookmarked()).isTrue();
+    }
 
     @Test
     @DisplayName("returns detail for a public published post without authentication")
@@ -156,11 +306,54 @@ class PostServiceTest {
 
       when(postRepository.findById(20L)).thenReturn(Optional.of(post));
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
 
       PostDetailResponse response = postService.getPost(auth, 20L);
 
       assertThat(response.id()).isEqualTo(20L);
       assertThat(response.title()).isEqualTo("Private post");
+    }
+
+    @Test
+    @DisplayName("returns detail for a private published post when requested by the author")
+    void returnsDetailForPrivatePublishedPostWhenAuthor() {
+      User author = createUser("author", 1L);
+      Authentication auth = authenticatedUser(author.getUsername());
+      Post post =
+          createPost(
+              author, 21L, "Private published", PostType.acceptance, PostStatus.published,
+              PostVisibility.private_post);
+      post.setPublishedAt(Instant.parse("2026-02-01T00:00:00Z"));
+
+      when(postRepository.findById(21L)).thenReturn(Optional.of(post));
+      when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
+
+      PostDetailResponse response = postService.getPost(auth, 21L);
+
+      assertThat(response.id()).isEqualTo(21L);
+      assertThat(response.status()).isEqualTo(PostStatus.published);
+    }
+
+    @Test
+    @DisplayName("returns not found for a private published post when requested by a non-author")
+    void returnsNotFoundForPrivatePublishedPostWhenNotAuthor() {
+      User author = createUser("author", 1L);
+      User other = createUser("other", 2L);
+      Authentication auth = authenticatedUser(other.getUsername());
+      Post post =
+          createPost(
+              author, 31L, "Private published", PostType.acceptance, PostStatus.published,
+              PostVisibility.private_post);
+      post.setPublishedAt(Instant.parse("2026-02-01T00:00:00Z"));
+
+      when(postRepository.findById(31L)).thenReturn(Optional.of(post));
+      when(userRepository.findByUsername(other.getUsername())).thenReturn(Optional.of(other));
+
+      assertThatThrownBy(() -> postService.getPost(auth, 31L))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 
     @Test
@@ -181,6 +374,26 @@ class PostServiceTest {
           .isInstanceOfSatisfying(
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("returns detail when the author views their own public draft post")
+    void authorCanViewOwnPublicDraftPost() {
+      User author = createUser("author", 1L);
+      Authentication auth = authenticatedUser(author.getUsername());
+      Post post =
+          createPost(
+              author, 41L, "Public draft", PostType.acceptance, PostStatus.draft,
+              PostVisibility.public_post);
+
+      when(postRepository.findById(41L)).thenReturn(Optional.of(post));
+      when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
+
+      PostDetailResponse response = postService.getPost(auth, 41L);
+
+      assertThat(response.id()).isEqualTo(41L);
+      assertThat(response.status()).isEqualTo(PostStatus.draft);
     }
 
     @Test
@@ -238,6 +451,7 @@ class PostServiceTest {
               null);
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
       when(postRepository.save(any(Post.class)))
           .thenAnswer(
               inv -> {
@@ -269,6 +483,7 @@ class PostServiceTest {
               null);
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
       when(postRepository.save(any(Post.class)))
           .thenAnswer(
               inv -> {
@@ -293,6 +508,7 @@ class PostServiceTest {
           new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
       when(postRepository.save(any(Post.class)))
           .thenAnswer(
               inv -> {
@@ -305,6 +521,34 @@ class PostServiceTest {
       PostDetailResponse response = postService.createPost(auth, request);
 
       assertThat(response.visibility()).isEqualTo(PostVisibility.public_post);
+    }
+
+    @Test
+    @DisplayName("returns unauthorized when authentication exists but user record is missing")
+    void returnsUnauthorizedWhenAuthExistsButUserRecordIsMissing() {
+      Authentication auth = authenticatedUser("missing-user");
+      PostRequest request =
+          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
+      when(userRepository.findByUsername("missing-user")).thenReturn(Optional.empty());
+
+      assertThatThrownBy(() -> postService.createPost(auth, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("returns unauthorized when authentication is present but not authenticated")
+    void returnsUnauthorizedWhenAuthenticationNotAuthenticated() {
+      Authentication auth = org.mockito.Mockito.mock(Authentication.class);
+      when(auth.isAuthenticated()).thenReturn(false);
+      PostRequest request =
+          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
+
+      assertThatThrownBy(() -> postService.createPost(auth, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
     }
   }
 
@@ -332,6 +576,7 @@ class PostServiceTest {
               null);
 
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
       when(postRepository.findByIdAndAuthor(5L, author)).thenReturn(Optional.of(post));
       when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -339,6 +584,38 @@ class PostServiceTest {
 
       assertThat(response.publishedAt()).isNotNull();
       assertThat(response.status()).isEqualTo(PostStatus.published);
+    }
+
+    @Test
+    @DisplayName("does not set publishedAt when updating a published post back to draft")
+    void doesNotTouchPublishedAtWhenUnpublishingToDraft() {
+      User author = createUser("author", 1L);
+      Authentication auth = authenticatedUser(author.getUsername());
+      Instant originalPublishedAt = Instant.parse("2026-02-01T12:00:00Z");
+      Post post =
+          createPost(
+              author, 5L, "Was live", PostType.acceptance, PostStatus.published,
+              PostVisibility.public_post);
+      post.setPublishedAt(originalPublishedAt);
+      PostRequest request =
+          new PostRequest(
+              PostType.acceptance,
+              "Back to draft",
+              "Body",
+              PostVisibility.private_post,
+              PostStatus.draft,
+              null,
+              null);
+
+      when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
+      when(postRepository.findByIdAndAuthor(5L, author)).thenReturn(Optional.of(post));
+      when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      PostDetailResponse response = postService.updatePost(auth, 5L, request);
+
+      assertThat(response.status()).isEqualTo(PostStatus.draft);
+      assertThat(response.publishedAt()).isEqualTo(originalPublishedAt);
     }
 
     @Test
@@ -363,6 +640,7 @@ class PostServiceTest {
               null);
 
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
       when(postRepository.findByIdAndAuthor(5L, author)).thenReturn(Optional.of(post));
       when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 

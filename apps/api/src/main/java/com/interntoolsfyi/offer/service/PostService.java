@@ -7,6 +7,7 @@ import com.interntoolsfyi.offer.model.Post;
 import com.interntoolsfyi.offer.model.PostStatus;
 import com.interntoolsfyi.offer.model.PostVisibility;
 import com.interntoolsfyi.offer.repository.PostRepository;
+import com.interntoolsfyi.offer.repository.SavedPostRepository;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
 import java.time.Instant;
@@ -23,25 +24,27 @@ import org.springframework.web.server.ResponseStatusException;
 public class PostService {
 
   private final PostRepository postRepository;
+  private final SavedPostRepository savedPostRepository;
   private final UserRepository userRepository;
 
-  public PostService(PostRepository postRepository, UserRepository userRepository) {
+  public PostService(PostRepository postRepository, SavedPostRepository savedPostRepository, UserRepository userRepository) {
     this.postRepository = postRepository;
+    this.savedPostRepository = savedPostRepository;
     this.userRepository = userRepository;
   }
 
   @Transactional(readOnly = true)
-  public Page<PostSummaryResponse> listPublishedPosts(Pageable pageable) {
+  public Page<PostSummaryResponse> listPublishedPosts(Authentication auth, Pageable pageable) {
     return postRepository
         .findByStatusOrderByPublishedAtDesc(PostStatus.published, pageable)
-        .map(this::toSummary);
+        .map(p -> toSummary(p, auth));
   }
 
   @Transactional(readOnly = true)
   public List<PostSummaryResponse> listMyPosts(Authentication auth) {
     User user = requireUser(auth);
     return postRepository.findByAuthorOrderByCreatedAtDesc(user).stream()
-        .map(this::toSummary)
+        .map(p -> toSummary(p, auth))
         .toList();
   }
 
@@ -60,7 +63,7 @@ public class PostService {
       }
     }
 
-    return toDetail(post);
+    return toDetail(post, auth);
   }
 
   @Transactional
@@ -69,10 +72,12 @@ public class PostService {
     Post post = new Post();
     post.setAuthor(user);
     applyRequest(post, request);
-    if (post.getStatus() == PostStatus.published && post.getPublishedAt() == null) {
+    // New posts never have publishedAt set before this point; avoid the redundant
+    // "already published" branch that only exists on updates (see updatePost).
+    if (post.getStatus() == PostStatus.published) {
       post.setPublishedAt(Instant.now());
     }
-    return toDetail(postRepository.save(post));
+    return toDetail(postRepository.save(post), auth);
   }
 
   @Transactional
@@ -83,7 +88,7 @@ public class PostService {
     if (post.getStatus() == PostStatus.published && post.getPublishedAt() == null) {
       post.setPublishedAt(Instant.now());
     }
-    return toDetail(postRepository.save(post));
+    return toDetail(postRepository.save(post), auth);
   }
 
   @Transactional
@@ -119,7 +124,14 @@ public class PostService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
   }
 
-  private PostSummaryResponse toSummary(Post p) {
+  private boolean isBookmarked(Post p, Authentication auth) {
+    if (auth == null || !auth.isAuthenticated()) return false;
+    return userRepository.findByUsername(auth.getName())
+        .map(u -> savedPostRepository.existsByPostAndUser(p, u))
+        .orElse(false);
+  }
+
+  private PostSummaryResponse toSummary(Post p, Authentication auth) {
     return new PostSummaryResponse(
         p.getId(),
         p.getType(),
@@ -128,10 +140,11 @@ public class PostService {
         p.getStatus(),
         p.getAuthor().getUsername(),
         p.getPublishedAt(),
-        p.getCreatedAt());
+        p.getCreatedAt(),
+        isBookmarked(p, auth));
   }
 
-  private PostDetailResponse toDetail(Post p) {
+  private PostDetailResponse toDetail(Post p, Authentication auth) {
     return new PostDetailResponse(
         p.getId(),
         p.getType(),
@@ -144,6 +157,7 @@ public class PostService {
         p.getSourceOfferIds(),
         p.getPublishedAt(),
         p.getCreatedAt(),
-        p.getUpdatedAt());
+        p.getUpdatedAt(),
+        isBookmarked(p, auth));
   }
 }

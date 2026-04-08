@@ -98,4 +98,16 @@ describe("paycheck draft storage", () => {
       name: "Summer expense doc",
     });
   });
+
+  it("treats invalid JSON in storage as empty", () => {
+    window.localStorage.setItem("paycheck-saved-plan-draft", "{not-json");
+    expect(getStoredPaycheckConfig()).toBeNull();
+    expect(getStoredPlannerData()).toEqual({ expenses: [] });
+  });
+
+  it("clears draft with clearStoredPaycheckDraft", () => {
+    saveStoredPaycheckConfig(DEFAULT_PAYCHECK_CONFIG);
+    clearStoredPaycheckDraft();
+    expect(getStoredPaycheckConfig()).toBeNull();
+  });
 });

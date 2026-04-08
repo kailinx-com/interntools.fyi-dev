@@ -18,4 +18,5 @@ public record PostDetailResponse(
     List<Long> sourceOfferIds,
     Instant publishedAt,
     Instant createdAt,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    boolean bookmarked) {}

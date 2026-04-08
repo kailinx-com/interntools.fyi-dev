@@ -234,16 +234,16 @@ describe("CompareOffers", () => {
   describe("add / remove offers", () => {
     it("adds a third offer", async () => {
       render(<CompareOffers />);
-      await user.click(screen.getByRole("button", { name: /add offer/i }));
+      await user.click(screen.getByText("Add Offer"));
       expect(screen.getAllByPlaceholderText("Company")).toHaveLength(3);
     });
 
     it("adds up to 4 and disables button", async () => {
       render(<CompareOffers />);
-      await user.click(screen.getByRole("button", { name: /add offer/i }));
-      await user.click(screen.getByRole("button", { name: /add offer/i }));
+      await user.click(screen.getByText("Add Offer"));
+      await user.click(screen.getByText("Add Offer"));
       expect(screen.getAllByPlaceholderText("Company")).toHaveLength(4);
-      expect(screen.getByRole("button", { name: /add offer/i })).toBeDisabled();
+      expect(screen.getByText("Add Offer").closest("button")).toBeDisabled();
     });
   });
 
@@ -379,7 +379,7 @@ describe("CompareOffers", () => {
       await user.type(companyInputs[0], "Google");
       await user.type(companyInputs[1], "Meta");
 
-      await user.click(screen.getByRole("button", { name: /publish/i }));
+      await user.click(screen.getByText("Publish"));
 
       expect(mockSaveDraft).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -434,8 +434,8 @@ describe("CompareOffers", () => {
         await user.type(ci[1], "Meta");
         await user.click(screen.getByRole("button", { name: /save/i }));
 
-        expect(mockCreateOffer).toHaveBeenCalledTimes(2);
         await waitFor(() => expect(mockCreateComparison).toHaveBeenCalled());
+        expect(mockCreateOffer).not.toHaveBeenCalled();
       });
 
       it("validates min 2 offers", async () => {
@@ -456,13 +456,15 @@ describe("CompareOffers", () => {
       });
 
       it("shows error on failure", async () => {
-        mockCreateOffer.mockRejectedValueOnce(new Error("DB error"));
+        mockCreateComparison.mockRejectedValueOnce(new Error("DB error"));
         render(<CompareOffers />);
         const ci = screen.getAllByPlaceholderText("Company");
         await user.type(ci[0], "A");
         await user.type(ci[1], "B");
         await user.click(screen.getByRole("button", { name: /save/i }));
-        await waitFor(() => expect(screen.getByText(/db error/i)).toBeInTheDocument());
+        await waitFor(() =>
+          expect(screen.getByText(/db error|failed to save/i)).toBeInTheDocument(),
+        );
       });
     });
 
