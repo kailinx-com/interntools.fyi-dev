@@ -1,8 +1,11 @@
 package com.interntoolsfyi.config;
 
 import com.interntoolsfyi.auth.config.JwtAuthFilter;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -23,9 +26,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
   private final JwtAuthFilter jwtAuthFilter;
+  private final Environment env;
 
-  public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+  public SecurityConfig(JwtAuthFilter jwtAuthFilter, Environment env) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.env = env;
   }
 
   @Bean
@@ -46,10 +51,14 @@ public class SecurityConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.addAllowedOrigin("http://localhost:3000");
-    configuration.addAllowedOrigin("http://127.0.0.1:3000");
-    configuration.addAllowedMethod("*");
-    configuration.addAllowedHeader("*");
+    String rawOrigins = env.getProperty(
+        "app.cors.allowed-origins", "http://localhost:3000,http://127.0.0.1:3000");
+    Arrays.stream(rawOrigins.split(","))
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .forEach(configuration::addAllowedOrigin);
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+    configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
     configuration.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
