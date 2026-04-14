@@ -6,7 +6,11 @@
       "Bash(pnpm next:*)",
       "Bash(pnpm --filter web dev)",
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
-      "Bash(pnpm jest:*)"
+      "Bash(pnpm jest:*)",
+      "Bash(mvn -B test)",
+      "Bash(mvn dependency:tree)",
+      "Bash(mvn help:describe -Dplugin=org.apache.maven.plugins:maven-surefire-plugin)",
+      "Bash(mvn help:effective-pom)"
     ]
   }
 }
