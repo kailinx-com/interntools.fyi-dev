@@ -31,7 +31,6 @@ jobs:
         run: ./mvnw -B test
 
   web-test:
-    if: false
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,7 +50,6 @@ jobs:
         run: pnpm exec jest --ci --coverage
 
   web-e2e:
-    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:

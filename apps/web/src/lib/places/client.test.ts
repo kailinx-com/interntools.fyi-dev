@@ -305,4 +305,70 @@ describe("buildMatchTokensFromPlace extra branches", () => {
     expect(tokens).toContain("Hood");
     expect(tokens).toContain("First Street");
   });
+
+  it("does not double-push shortText when it equals longText", () => {
+    const tokens = buildMatchTokensFromPlace("Addr", [
+      { longText: "Brooklyn", shortText: "Brooklyn", types: ["neighborhood"] },
+    ]);
+    expect(tokens.filter((t) => t === "Brooklyn")).toHaveLength(1);
+  });
+
+  it("handles undefined addressComponents by falling back to formattedAddress segment", () => {
+    const tokens = buildMatchTokensFromPlace("Portland, OR, USA", undefined);
+    expect(tokens).toContain("Portland");
+    expect(tokens).not.toContain("OR");
+  });
+});
+
+describe("matchTokensFromLocationDescription edge cases", () => {
+  it("returns empty array for empty string", () => {
+    expect(matchTokensFromLocationDescription("")).toEqual([]);
+  });
+
+  it("returns empty array for whitespace-only string", () => {
+    expect(matchTokensFromLocationDescription("   ")).toEqual([]);
+  });
+
+  it("returns empty array when only token is too short", () => {
+    expect(matchTokensFromLocationDescription("x")).toEqual([]);
+  });
+
+  it("falls back to the whole description when no commas and length >= 2", () => {
+    expect(matchTokensFromLocationDescription("ab")).toEqual(["ab"]);
+    expect(matchTokensFromLocationDescription("Boston")).toEqual(["Boston"]);
+    // all comma-separated parts are too short (< 2 chars) → ordered stays empty → fallback push
+    expect(matchTokensFromLocationDescription("a,b")).toEqual(["a,b"]);
+  });
+
+  it("deduplicates case-insensitively", () => {
+    expect(matchTokensFromLocationDescription("Seattle, seattle, SEATTLE")).toEqual(["Seattle"]);
+  });
+});
+
+describe("searchPlacesByText – mapSearchPlace fallbacks", () => {
+  const originalKey2 = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
+  const originalFetch2 = global.fetch;
+
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY = "test-key";
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY = originalKey2;
+    global.fetch = originalFetch2;
+  });
+
+  it("falls back to 'Unknown place' when displayName is missing", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        places: [{ id: "ChIJ_noname", formattedAddress: "123 St" }],
+      }),
+    });
+
+    const out = await searchPlacesByText("test");
+    expect(out[0].displayName).toBe("Unknown place");
+    expect(out[0].firstPhotoName).toBeNull();
+  });
 });

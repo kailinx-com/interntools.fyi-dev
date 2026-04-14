@@ -180,6 +180,7 @@ export function Article({ post, offers = [] }: ArticleProps) {
           <Button
             variant="ghost"
             size="icon"
+            title={bookmarked ? "Remove bookmark" : "Bookmark"}
             className={cn("ml-auto relative z-10", bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary")}
             onClick={(e) => void toggleBookmark(e)}
           >

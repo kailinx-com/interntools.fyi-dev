@@ -115,4 +115,36 @@ describe("SearchPageClient", () => {
       `/details/${encodeLocationDescriptionForPath("Austin, TX, USA")}`,
     );
   });
+
+  it("does not navigate when the search query is empty or whitespace", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<SearchPageClient />);
+
+    await user.click(screen.getByRole("button", { name: /^search$/i }));
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await user.type(screen.getByTestId("place-search-input"), "   ");
+    await user.click(screen.getByRole("button", { name: /^search$/i }));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("shows the API key hint when getPlacesApiKey returns empty string", () => {
+    const clientMock = jest.requireMock("@/lib/places/client") as {
+      getPlacesApiKey: jest.Mock;
+    };
+    // Use mockReturnValue (not Once) because the component re-renders via useEffect,
+    // which would exhaust a mockReturnValueOnce before the hint is checked.
+    clientMock.getPlacesApiKey.mockReturnValue("");
+
+    render(<SearchPageClient />);
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+
+    clientMock.getPlacesApiKey.mockReturnValue("test-key");
+  });
+
+  it("hides the saved locations section when there are no bookmarks", () => {
+    render(<SearchPageClient />);
+    expect(screen.queryByText("Saved locations")).not.toBeInTheDocument();
+  });
 });

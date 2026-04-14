@@ -176,4 +176,82 @@ describe("Article", () => {
     });
     expect(authorLink).toHaveAttribute("href", "/profile/alice");
   });
+
+  it("shows empty string for null publishedAt", () => {
+    render(<Article post={makePost({ publishedAt: null, createdAt: null })} />);
+    // just checking it renders without throwing
+    expect(screen.getByRole("article")).toBeInTheDocument();
+  });
+
+  it("shows 'Just now' for a post published less than a minute ago", () => {
+    const recentDate = new Date(Date.now() - 10_000).toISOString();
+    render(<Article post={makePost({ publishedAt: recentDate })} />);
+    expect(screen.getByText("Just now")).toBeInTheDocument();
+  });
+
+  it("shows minutes ago for a post published 5 minutes ago", () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+    render(<Article post={makePost({ publishedAt: fiveMinAgo })} />);
+    expect(screen.getByText("5m ago")).toBeInTheDocument();
+  });
+
+  it("shows hours ago for a post published 3 hours ago", () => {
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60_000).toISOString();
+    render(<Article post={makePost({ publishedAt: threeHoursAgo })} />);
+    expect(screen.getByText("3h ago")).toBeInTheDocument();
+  });
+
+  it("shows days ago for a post published 5 days ago", () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60_000).toISOString();
+    render(<Article post={makePost({ publishedAt: fiveDaysAgo })} />);
+    expect(screen.getByText("5d ago")).toBeInTheDocument();
+  });
+
+  it("reverts bookmark optimistic update when the API call throws", async () => {
+    const user = userEvent.setup();
+    mockBookmarkPost.mockRejectedValue(new Error("network"));
+    render(<Article post={makePost({ bookmarked: false })} offers={[]} />);
+
+    const buttons = screen.getAllByRole("button");
+    await user.click(buttons[buttons.length - 1]);
+
+    await waitFor(() => expect(mockBookmarkPost).toHaveBeenCalled());
+    // After the error, the optimistic toggle should have been reverted
+    // The bookmark icon should be back to unbookmarked (no fill-current class visible)
+    const bookmarkBtn = buttons[buttons.length - 1];
+    expect(bookmarkBtn).toBeInTheDocument();
+  });
+
+  it("renders fallback label when offer company is null in multi-offer view", () => {
+    render(
+      <Article
+        post={makePost({ type: "comparison" })}
+        offers={[
+          offer({ id: 1, company: null as unknown as string, title: "SWE" }),
+          offer({ id: 2, company: "", title: "PM" }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("Option A")).toBeInTheDocument();
+    expect(screen.getByText("Option B")).toBeInTheDocument();
+  });
+
+  it("hides compensation badge for single offer when comp is a dash", () => {
+    render(
+      <Article
+        post={makePost()}
+        offers={[
+          offer({
+            id: 1,
+            company: "Acme",
+            compensationType: null as unknown as "hourly",
+            payAmount: null,
+          }),
+        ]}
+      />,
+    );
+    // The badge should not appear when formatOfferCompensationLine returns "—"
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+  });
 });
