@@ -1,4 +1,6 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
+process.env.NEXT_PUBLIC_API_BASE_URL ??= "http://localhost:8080/api";
+process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ??= "test-placeholder";
+
 const nextJest = require("next/jest");
 
 const createJestConfig = nextJest({
