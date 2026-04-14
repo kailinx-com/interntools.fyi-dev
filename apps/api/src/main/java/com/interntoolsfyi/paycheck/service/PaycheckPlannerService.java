@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@Profile("!test")
+@Profile("!(test | e2e)")
 public class PaycheckPlannerService {
 
   private final PlannerDocumentRepository plannerDocumentRepository;

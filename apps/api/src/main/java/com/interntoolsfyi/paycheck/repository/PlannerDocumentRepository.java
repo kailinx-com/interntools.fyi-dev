@@ -7,7 +7,7 @@ import java.util.Optional;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-@Profile("!test")
+@Profile("!(test | e2e)")
 public interface PlannerDocumentRepository extends MongoRepository<PlannerDocument, String> {
     List<PlannerDocument> findByUserOrderByCreatedAtDesc(User user);
 

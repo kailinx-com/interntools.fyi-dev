@@ -13,7 +13,16 @@
       "Bash(mvn help:effective-pom)",
       "Bash(find /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/src/test -name \"*.java\" -exec sed -i '' 's/\\\\.deleteAll\\(\\)/.deleteAllInBatch\\(\\)/g' {} +)",
       "Bash(pnpm exec:*)",
-      "Bash(jar tf:*)"
+      "Bash(jar tf:*)",
+      "Bash(timeout 60 ./mvnw -DskipTests spring-boot:run -Dspring-boot.run.profiles=e2e)",
+      "Bash(./mvnw clean:*)",
+      "Bash(javap -verbose /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/target/classes/com/interntoolsfyi/paycheck/controller/PaycheckController.class)",
+      "Bash(javap -verbose /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/target/classes/com/interntoolsfyi/paycheck/repository/PlannerDocumentRepository.class)",
+      "Bash(javap -verbose /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/target/classes/com/interntoolsfyi/paycheck/service/PaycheckPlannerService.class)",
+      "Bash(timeout 60 ./mvnw -DskipTests -Dspring-boot.run.profiles=e2e spring-boot:run)",
+      "Bash(./mvnw -DskipTests -Dspring-boot.run.profiles=e2e spring-boot:run)",
+      "Bash(kill %1)",
+      "Bash(wait %1)"
     ]
   }
 }

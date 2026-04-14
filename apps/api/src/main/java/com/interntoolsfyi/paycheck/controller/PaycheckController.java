@@ -6,12 +6,14 @@ import com.interntoolsfyi.paycheck.service.PaycheckSavedPlanService;
 import com.interntoolsfyi.paycheck.service.PaycheckScenarioService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/paycheck")
+@Profile("!(test | e2e)")
 public class PaycheckController {
 
   private final PaycheckScenarioService paycheckScenarioService;
