@@ -64,12 +64,12 @@ class PostControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    voteRepository.deleteAll();
-    commentRepository.deleteAll();
-    postRepository.deleteAll();
-    offerRepository.deleteAll();
-    comparisonRepository.deleteAll();
-    userRepository.deleteAll();
+    voteRepository.deleteAllInBatch();
+    commentRepository.deleteAllInBatch();
+    postRepository.deleteAllInBatch();
+    offerRepository.deleteAllInBatch();
+    comparisonRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();

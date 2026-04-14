@@ -52,9 +52,9 @@ class PaycheckControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    paycheckSavedPlanRepository.deleteAll();
-    paycheckConfigRepository.deleteAll();
-    userRepository.deleteAll();
+    paycheckSavedPlanRepository.deleteAllInBatch();
+    paycheckConfigRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
@@ -223,7 +223,7 @@ class PaycheckControllerIntegrationTest {
       User user = createUser("deleted-user");
       String authHeader = authHeaderFor(user);
       jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-      userRepository.deleteAll();
+      userRepository.deleteAllInBatch();
       jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
 
       mockMvc

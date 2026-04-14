@@ -40,7 +40,7 @@ class AuthControllerTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    userRepository.deleteAll();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();

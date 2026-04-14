@@ -50,11 +50,11 @@ class UserProfileControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    userFollowRepository.deleteAll();
-    savedPostRepository.deleteAll();
-    postRepository.deleteAll();
-    offerRepository.deleteAll();
-    userRepository.deleteAll();
+    userFollowRepository.deleteAllInBatch();
+    savedPostRepository.deleteAllInBatch();
+    postRepository.deleteAllInBatch();
+    offerRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();

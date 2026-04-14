@@ -45,10 +45,10 @@ class BookmarkControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    savedPostRepository.deleteAll();
-    postRepository.deleteAll();
-    offerRepository.deleteAll();
-    userRepository.deleteAll();
+    savedPostRepository.deleteAllInBatch();
+    postRepository.deleteAllInBatch();
+    offerRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();

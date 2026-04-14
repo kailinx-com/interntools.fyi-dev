@@ -10,7 +10,8 @@
       "Bash(mvn -B test)",
       "Bash(mvn dependency:tree)",
       "Bash(mvn help:describe -Dplugin=org.apache.maven.plugins:maven-surefire-plugin)",
-      "Bash(mvn help:effective-pom)"
+      "Bash(mvn help:effective-pom)",
+      "Bash(find /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/src/test -name \"*.java\" -exec sed -i '' 's/\\\\.deleteAll\\(\\)/.deleteAllInBatch\\(\\)/g' {} +)"
     ]
   }
 }

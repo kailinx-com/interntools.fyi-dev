@@ -56,12 +56,12 @@ class OfferControllerIntegrationTest {
   @BeforeEach
   void setUp() {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-    voteRepository.deleteAll();
-    commentRepository.deleteAll();
-    postRepository.deleteAll();
-    offerRepository.deleteAll();
-    comparisonRepository.deleteAll();
-    userRepository.deleteAll();
+    voteRepository.deleteAllInBatch();
+    commentRepository.deleteAllInBatch();
+    postRepository.deleteAllInBatch();
+    offerRepository.deleteAllInBatch();
+    comparisonRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
@@ -202,7 +202,7 @@ class OfferControllerIntegrationTest {
       User user = createUser("offer-deleted-user");
       String authHeader = authHeaderFor(user);
       jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
-      userRepository.deleteAll();
+      userRepository.deleteAllInBatch();
       jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
 
       mockMvc
