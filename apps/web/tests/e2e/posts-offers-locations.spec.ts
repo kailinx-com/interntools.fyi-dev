@@ -12,11 +12,14 @@ test.describe("posts, offers, and places surfaces", () => {
     page,
   }) => {
     await page.goto("/offers/submit");
-    await expect(page).toHaveURL(/\/offers\/submit$|\/login/);
-    if (/\/offers\/submit$/.test(page.url())) {
+    const titleLabel = page.getByLabel(/title/i);
+    const loginField = page.getByLabel(/username or email/i);
+    // Wait for either the authenticated form or the login redirect to settle,
+    // avoiding a race where toHaveURL resolves during the auth-loading spinner.
+    await expect(titleLabel.or(loginField)).toBeVisible({ timeout: 15_000 });
+    if (await titleLabel.isVisible()) {
       await expect(page.getByRole("button", { name: /^comparison$/i })).toBeVisible();
       await expect(page.getByRole("button", { name: /^acceptance$/i })).toBeVisible();
-      await expect(page.getByLabel(/title/i)).toBeVisible();
     }
   });
 });

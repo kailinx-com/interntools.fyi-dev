@@ -116,11 +116,11 @@ export default function MePage() {
     setDashboardActionError(null);
     try {
       const [allOffers, comparisons, posts, bookmarks, scenarios, planners] = await Promise.all([
-        fetchOffers(token),
-        fetchComparisons(token),
-        fetchMyPosts(token),
-        fetchBookmarkedPosts(token),
-        listCalculatorConfigs(token),
+        fetchOffers(token).catch(() => [] as Offer[]),
+        fetchComparisons(token).catch(() => [] as Comparison[]),
+        fetchMyPosts(token).catch(() => [] as PostSummary[]),
+        fetchBookmarkedPosts(token).catch(() => [] as PostSummary[]),
+        listCalculatorConfigs(token).catch(() => [] as SavedCalculatorConfigSummary[]),
         listPlannerDocuments(token).catch(() => [] as SavedPlannerDocumentSummary[]),
       ]);
       setData({ offers: allOffers, comparisons, posts, bookmarks, scenarios, planners });

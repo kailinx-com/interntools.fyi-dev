@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +35,7 @@ class PaycheckControllerTest {
 
   @Mock private PaycheckScenarioService paycheckScenarioService;
   @Mock private PaycheckPlannerService paycheckPlannerService;
+  @Mock private ObjectProvider<PaycheckPlannerService> paycheckPlannerServiceProvider;
   @Mock private PaycheckSavedPlanService paycheckSavedPlanService;
 
   @Mock private Authentication authentication;
@@ -42,9 +44,10 @@ class PaycheckControllerTest {
 
   @BeforeEach
   void setUp() {
+    when(paycheckPlannerServiceProvider.getObject()).thenReturn(paycheckPlannerService);
     controller =
         new PaycheckController(
-            paycheckScenarioService, paycheckPlannerService, paycheckSavedPlanService);
+            paycheckScenarioService, paycheckPlannerServiceProvider, paycheckSavedPlanService);
   }
 
   @Test

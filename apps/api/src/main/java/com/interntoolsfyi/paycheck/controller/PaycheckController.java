@@ -6,23 +6,22 @@ import com.interntoolsfyi.paycheck.service.PaycheckSavedPlanService;
 import com.interntoolsfyi.paycheck.service.PaycheckScenarioService;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/paycheck")
-@Profile("!(test | e2e)")
 public class PaycheckController {
 
   private final PaycheckScenarioService paycheckScenarioService;
-  private final PaycheckPlannerService paycheckPlannerService;
+  private final ObjectProvider<PaycheckPlannerService> paycheckPlannerService;
   private final PaycheckSavedPlanService paycheckSavedPlanService;
 
   public PaycheckController(
       PaycheckScenarioService paycheckScenarioService,
-      PaycheckPlannerService paycheckPlannerService,
+      ObjectProvider<PaycheckPlannerService> paycheckPlannerService,
       PaycheckSavedPlanService paycheckSavedPlanService) {
     this.paycheckScenarioService = paycheckScenarioService;
     this.paycheckPlannerService = paycheckPlannerService;
@@ -55,23 +54,23 @@ public class PaycheckController {
   @PostMapping(value = "/planner")
   public PlannerDetailResponse postPlanner(
       Authentication authentication, @Valid @RequestBody SavePlannerRequest request) {
-    return paycheckPlannerService.createPlanner(authentication, request);
+    return paycheckPlannerService.getObject().createPlanner(authentication, request);
   }
 
   @GetMapping(value = "/planner")
   public List<PlannerSummaryResponse> getAllPlanners(Authentication authentication) {
-    return paycheckPlannerService.getAllPlanners(authentication);
+    return paycheckPlannerService.getObject().getAllPlanners(authentication);
   }
 
   @GetMapping(value = "/planner/{id}", produces = "application/json")
   public PlannerDetailResponse getPlanner(Authentication authentication, @PathVariable String id) {
-    return paycheckPlannerService.getPlanner(authentication, id);
+    return paycheckPlannerService.getObject().getPlanner(authentication, id);
   }
 
   @DeleteMapping(value = "/planner/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deletePlanner(Authentication authentication, @PathVariable String id) {
-    paycheckPlannerService.deletePlanner(authentication, id);
+    paycheckPlannerService.getObject().deletePlanner(authentication, id);
   }
 
   @GetMapping("/plans")

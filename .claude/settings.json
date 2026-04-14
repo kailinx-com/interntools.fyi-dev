@@ -22,7 +22,16 @@
       "Bash(timeout 60 ./mvnw -DskipTests -Dspring-boot.run.profiles=e2e spring-boot:run)",
       "Bash(./mvnw -DskipTests -Dspring-boot.run.profiles=e2e spring-boot:run)",
       "Bash(kill %1)",
-      "Bash(wait %1)"
+      "Bash(wait %1)",
+      "Bash(javap -verbose /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/target/test-classes/com/interntoolsfyi/config/TestMongoConfig.class)",
+      "Bash(./mvnw -DskipTests -Dspring-boot.run.profiles=e2e -Dspring-boot.run.arguments=--debug spring-boot:run)",
+      "Bash(./mvnw help:describe -Dplugin=org.springframework.boot:spring-boot-maven-plugin -Dgoal=run -Ddetail)",
+      "Bash(./mvnw -DskipTests -Dspring-boot.run.profiles=e2e -Dspring-boot.run.useTestClasspath=true -Dspring-boot.run.jvmArguments=\"-Dspring.devtools.restart.enabled=false\" spring-boot:run)",
+      "Bash(./mvnw -DskipTests -Dspring-boot.run.profiles=e2e -Dspring-boot.run.jvmArguments=\"-Dspring.devtools.restart.enabled=false\" spring-boot:run)",
+      "Bash(lsof -ti:8080)",
+      "Bash(xargs kill:*)",
+      "Bash(grep \".java$\")",
+      "Bash(lsof -ti:3000)"
     ]
   }
 }
