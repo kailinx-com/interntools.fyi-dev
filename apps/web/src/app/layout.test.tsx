@@ -1,32 +1,30 @@
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
 import RootLayout from "./layout";
 
-jest.mock("next/font/google", () => ({
-  Inter: () => ({ variable: "--font-display" }),
-}));
-
 jest.mock("@/components/theme-provider", () => ({
-  ThemeProvider: ({ children }: { children: ReactNode }) => (
-    <div data-testid="theme-provider">{children}</div>
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="theme">{children}</div>
   ),
 }));
 
 jest.mock("@/components/auth/AuthProvider", () => ({
-  AuthProvider: ({ children }: { children: ReactNode }) => (
-    <div data-testid="auth-provider">{children}</div>
+  AuthProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="auth">{children}</div>
   ),
 }));
 
 describe("RootLayout", () => {
-  it("wraps children with theme and auth providers", () => {
-    render(
+  it("wraps app content without a cookie banner or first-visit modal in the tree", () => {
+    const { container } = render(
       <RootLayout>
-        <span>page-body</span>
+        <main data-testid="page">Hello</main>
       </RootLayout>,
     );
 
-    expect(screen.getByTestId("theme-provider")).toBeInTheDocument();
-    expect(screen.getByTestId("auth-provider")).toContainElement(screen.getByText("page-body"));
+    expect(screen.getByTestId("page")).toHaveTextContent("Hello");
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(container.querySelector('[aria-modal="true"]')).toBeNull();
+    expect(container.textContent?.toLowerCase() ?? "").not.toContain("accept all cookies");
+    expect(container.textContent?.toLowerCase() ?? "").not.toContain("cookie consent");
   });
 });

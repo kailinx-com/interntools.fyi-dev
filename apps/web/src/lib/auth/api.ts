@@ -39,6 +39,8 @@ export type UpdateProfileRequest = {
   email?: string;
   currentPassword?: string;
   newPassword?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 export function updateProfile(token: string, payload: UpdateProfileRequest) {

@@ -4,14 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.interntoolsfyi.offer.model.Post;
-import com.interntoolsfyi.offer.model.PostStatus;
-import com.interntoolsfyi.offer.model.PostType;
-import com.interntoolsfyi.offer.model.PostVisibility;
 import com.interntoolsfyi.offer.model.SavedPost;
+import com.interntoolsfyi.offer.testsupport.PostFixtures;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
-import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 class SavedPostRepositoryTest {
   @Autowired private SavedPostRepository savedPostRepository;
   @Autowired private PostRepository postRepository;
+  @Autowired private OfferRepository offerRepository;
   @Autowired private UserRepository userRepository;
 
   @Test
@@ -31,7 +29,7 @@ class SavedPostRepositoryTest {
   void existsAndFindWork() {
     User author = userRepository.saveAndFlush(createUser("author", "author@example.com"));
     User viewer = userRepository.saveAndFlush(createUser("viewer", "viewer@example.com"));
-    Post post = postRepository.saveAndFlush(createPublishedPost(author, "Saved post"));
+    Post post = PostFixtures.savePublishedPost(author, "Saved post", offerRepository, postRepository);
     SavedPost saved = new SavedPost();
     saved.setPost(post);
     saved.setUser(viewer);
@@ -47,7 +45,7 @@ class SavedPostRepositoryTest {
   void duplicateBookmarkViolatesUniqueConstraint() {
     User author = userRepository.saveAndFlush(createUser("author2", "author2@example.com"));
     User viewer = userRepository.saveAndFlush(createUser("viewer2", "viewer2@example.com"));
-    Post post = postRepository.saveAndFlush(createPublishedPost(author, "Saved post two"));
+    Post post = PostFixtures.savePublishedPost(author, "Saved post two", offerRepository, postRepository);
 
     SavedPost first = new SavedPost();
     first.setPost(post);
@@ -66,14 +64,4 @@ class SavedPostRepositoryTest {
     return new User(username, email, "hashed-password", Role.STUDENT, "Test", "User");
   }
 
-  private static Post createPublishedPost(User author, String title) {
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setType(PostType.acceptance);
-    post.setTitle(title);
-    post.setVisibility(PostVisibility.public_post);
-    post.setStatus(PostStatus.published);
-    post.setPublishedAt(Instant.now());
-    return post;
-  }
 }

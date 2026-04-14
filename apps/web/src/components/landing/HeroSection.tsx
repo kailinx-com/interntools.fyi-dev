@@ -53,7 +53,6 @@ export function HeroSection({
         className,
       )}
     >
-      {/* Background decoration */}
       <div className="absolute top-0 left-1/2 w-full -translate-x-1/2 h-full z-0 pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl opacity-50" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl opacity-50" />
@@ -81,7 +80,6 @@ export function HeroSection({
           </p>
         )}
 
-        {/* Hero CTAs */}
         <div className="flex flex-row justify-center items-center gap-4 max-w-lg mx-auto">
           {ctas.map((cta) => (
             <Link
@@ -110,7 +108,6 @@ export function HeroSection({
           ))}
         </div>
 
-        {/* Community feed link */}
         <Link
           href={feedHref}
           className="inline-flex items-center gap-1.5 mt-6 text-sm text-muted-foreground hover:text-primary transition-colors"

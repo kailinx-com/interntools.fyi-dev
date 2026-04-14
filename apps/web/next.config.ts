@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Docker / VM bind mounts: native FS events are unreliable; poll for dev HMR (see DOCKER_DEV in compose).
+  // DOCKER_DEV=1: poll for HMR when the app is bind-mounted (compose sets this).
   ...(process.env.DOCKER_DEV === "1"
     ? { watchOptions: { pollIntervalMs: 1000 } }
     : {}),

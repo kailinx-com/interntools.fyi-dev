@@ -47,7 +47,7 @@ describe("CommunityNotesSection", () => {
     });
     mockFetchPost.mockResolvedValue({
       body: "Detail body",
-      offerSnapshots: null,
+      offers: [],
     });
 
     render(<CommunityNotesSection />);
@@ -88,7 +88,7 @@ describe("CommunityNotesSection", () => {
     });
     mockFetchPost.mockResolvedValue({
       body: "",
-      offerSnapshots: JSON.stringify([{ company: "CoA" }, { company: "CoB" }]),
+      offers: [{ company: "CoA" }, { company: "CoB" }],
     });
 
     render(<CommunityNotesSection />);
@@ -112,7 +112,7 @@ describe("CommunityNotesSection", () => {
     });
     mockFetchPost.mockResolvedValue({
       body: null,
-      offerSnapshots: null,
+      offers: [],
     });
 
     render(<CommunityNotesSection />);

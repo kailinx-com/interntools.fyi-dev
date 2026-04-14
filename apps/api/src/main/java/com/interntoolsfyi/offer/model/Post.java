@@ -3,6 +3,7 @@ package com.interntoolsfyi.offer.model;
 import com.interntoolsfyi.user.model.User;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 
@@ -30,6 +31,9 @@ public class Post {
   @Lob
   private String body;
 
+  @Column(name = "office_location")
+  private String officeLocation;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private PostVisibility visibility = PostVisibility.public_post;
@@ -38,11 +42,17 @@ public class Post {
   @Column(nullable = false)
   private PostStatus status = PostStatus.draft;
 
-  @Lob
-  private String offerSnapshots;
+  @ManyToOne
+  @JoinColumn(name = "comparison_id")
+  private Comparison comparison;
 
-  @ElementCollection
-  private List<Long> sourceOfferIds;
+  @OneToMany(
+      mappedBy = "post",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
+  @OrderBy("sortOrder ASC")
+  private List<PostIncludedOffer> includedOffers = new ArrayList<>();
 
   @Column(name = "published_at")
   private Instant publishedAt;

@@ -8,6 +8,7 @@ import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -19,17 +20,38 @@ public class ComparisonService {
 
   private final ComparisonRepository comparisonRepository;
   private final UserRepository userRepository;
+  private final OfferService offerService;
 
   public ComparisonService(
-      ComparisonRepository comparisonRepository, UserRepository userRepository) {
+      ComparisonRepository comparisonRepository,
+      UserRepository userRepository,
+      OfferService offerService) {
     this.comparisonRepository = comparisonRepository;
     this.userRepository = userRepository;
+    this.offerService = offerService;
   }
 
   @Transactional(readOnly = true)
   public List<ComparisonResponse> listComparisons(Authentication auth) {
     User user = requireUser(auth);
     return comparisonRepository.findByUserOrderByCreatedAtDesc(user).stream()
+        .map(this::toResponse)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<ComparisonResponse> listPublishedComparisonsByOfficeLocationTokens(
+      List<String> rawTokens) {
+    Set<Long> matchingOfferIds = offerService.offerIdsMatchingOfficeLocationTokens(rawTokens);
+    if (matchingOfferIds.isEmpty()) {
+      return List.of();
+    }
+    return comparisonRepository.findByIsPublishedTrue().stream()
+        .filter(
+            c ->
+                c.getIncludedOfferIds() != null
+                    && c.getIncludedOfferIds().stream().anyMatch(matchingOfferIds::contains))
+        .limit(50)
         .map(this::toResponse)
         .toList();
   }

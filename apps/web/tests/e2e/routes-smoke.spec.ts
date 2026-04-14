@@ -1,9 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-/**
- * Lightweight route smoke tests (requires webServer + API from playwright.config).
- * Asserts public pages render without 5xx; complements critical-journeys.spec.ts.
- */
+/** Public routes render without 5xx (playwright webServer + API). */
 test.describe("public route smoke", () => {
   test("calculator and planner shells load", async ({ page }) => {
     await page.goto("/calculator");
@@ -13,6 +10,11 @@ test.describe("public route smoke", () => {
     await expect(
       page.getByText(/Sign in to use the budget planner|No saved calculator configs/i).first(),
     ).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("search page shell loads", async ({ page }) => {
+    await page.goto("/search");
+    await expect(page.getByRole("heading", { name: /search by location/i })).toBeVisible({ timeout: 30_000 });
   });
 
   test("legal and settings pages load", async ({ page }) => {

@@ -281,10 +281,22 @@ class OfferServiceTest {
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
 
-      verify(offerRepository, never()).delete(any());
+      verify(offerRepository, never()).delete(org.mockito.ArgumentMatchers.any(Offer.class));
     }
   }
 
+  @Nested
+  @DisplayName("listOffersByOfficeLocationTokens")
+  class OfficeLocationBrowseTests {
+
+    @Test
+    @DisplayName("returns empty when there are no usable tokens")
+    void returnsEmptyWhenNoUsableTokens() {
+      assertThat(offerService.listOffersByOfficeLocationTokens(List.of())).isEmpty();
+      assertThat(offerService.listOffersByOfficeLocationTokens(List.of(" ", "%", "_"))).isEmpty();
+      assertThat(offerService.offerIdsMatchingOfficeLocationTokens(List.of())).isEmpty();
+    }
+  }
 
   private static Authentication authenticatedUser(String username) {
     Authentication auth = org.mockito.Mockito.mock(Authentication.class);

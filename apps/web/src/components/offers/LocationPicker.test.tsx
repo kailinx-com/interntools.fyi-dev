@@ -116,10 +116,74 @@ describe("LocationPicker", () => {
       expect(screen.getByTestId("location-suggestion")).toBeInTheDocument();
     });
 
+    onChange.mockClear();
+
     const suggestion = screen.getByTestId("location-suggestion");
     suggestion.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 
     expect(onChange).toHaveBeenCalledWith("San Francisco, CA, USA");
+  });
+
+  it("invokes onPickSuggestion with the full suggestion when a row is selected", async () => {
+    mockFetch.mockResolvedValueOnce(
+      placesResponse([{ placeId: "p1", text: "San Francisco, CA, USA" }]),
+    );
+
+    const onPickSuggestion = jest.fn();
+    const onChange = jest.fn();
+    render(
+      <LocationPicker value="" onChange={onChange} onPickSuggestion={onPickSuggestion} />,
+    );
+
+    fireChange(screen.getByTestId("location-input"), "San");
+    jest.advanceTimersByTime(350);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-suggestion")).toBeInTheDocument();
+    });
+
+    screen.getByTestId("location-suggestion").dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true }),
+    );
+
+    expect(onPickSuggestion).toHaveBeenCalledWith({
+      placeId: "p1",
+      description: "San Francisco, CA, USA",
+    });
+  });
+
+  it("calls onChange only after picking when emitValueOnInput is false", async () => {
+    mockFetch.mockResolvedValueOnce(placesResponse([{ placeId: "p1", text: "Los Angeles, CA" }]));
+
+    const onChange = jest.fn();
+    render(
+      <LocationPicker value="" onChange={onChange} emitValueOnInput={false} />,
+    );
+
+    fireChange(screen.getByTestId("location-input"), "Los");
+    jest.advanceTimersByTime(350);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-suggestion")).toBeInTheDocument();
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+
+    screen.getByTestId("location-suggestion").dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true }),
+    );
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("Los Angeles, CA");
+  });
+
+  it("updates parent on each keystroke by default", () => {
+    const onChange = jest.fn();
+    render(<LocationPicker value="" onChange={onChange} />);
+
+    fireChange(screen.getByTestId("location-input"), "Sea");
+
+    expect(onChange).toHaveBeenCalledWith("Sea");
   });
 
   it("does not call the API for empty input", () => {
@@ -146,15 +210,14 @@ describe("LocationPicker", () => {
     expect(screen.queryAllByTestId("location-suggestion")).toHaveLength(0);
   });
 
-  it("shows fallback when no API key is set", () => {
+  it("shows a plain input and hint when no API key is set", () => {
     process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY = "";
 
-    render(<LocationPicker value="" onChange={jest.fn()} />);
+    render(<LocationPicker value="" onChange={jest.fn()} placeholder="Search city…" />);
 
-    expect(
-      screen.getByPlaceholderText("Set NEXT_PUBLIC_GOOGLE_PLACES_API_KEY"),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId("location-input")).not.toBeInTheDocument();
+    expect(screen.getByTestId("location-input")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search city…")).toBeInTheDocument();
+    expect(screen.getByText(/NEXT_PUBLIC_GOOGLE_PLACES_API_KEY/)).toBeInTheDocument();
   });
 
   it("closes the dropdown on Escape key", async () => {

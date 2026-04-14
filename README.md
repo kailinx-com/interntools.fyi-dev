@@ -84,11 +84,11 @@ Base: `/api`
 |---|---|
 | Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /me` |
 | Profiles | `GET/PATCH /profiles/me`, `GET /profiles/{id}` |
-| Offers | `GET/POST /offers`, `GET/PUT/DELETE /offers/{id}` |
-| Comparisons | `GET/POST /comparisons`, `GET/PUT/DELETE /comparisons/{id}` |
+| Offers | `GET/POST /offers`, `GET/PUT/DELETE /offers/{id}`, `GET /offers/by-office-location?tokens=` (public; match saved `officeLocation`) |
+| Comparisons | `GET/POST /comparisons`, `GET/PUT/DELETE /comparisons/{id}`, `GET /comparisons/by-office-location?tokens=` (public; published comps with a matching offer) |
 | Paycheck | `POST /paycheck/estimate`, `GET/POST /paycheck/saved-plans`, `GET/PUT/DELETE /paycheck/saved-plans/{id}` |
 | Paycheck scenarios | `GET/POST /paycheck/scenarios`, `GET/PUT/DELETE /paycheck/scenarios/{id}` |
-| Posts | `GET/POST /posts`, `GET/PUT/DELETE /posts/{id}` |
+| Posts | `GET/POST /posts`, `GET/PUT/DELETE /posts/{id}`, `GET /posts/related-location?text=` (public; location keyword search). Create/update: ordered `offers` (inline fields or existing `offerId`) and/or optional `comparisonId` — not both as the sole source; see `PostRequest` in the API module. |
 | Comments & votes | `POST /posts/{id}/comments`, `POST /posts/{id}/vote` |
 | Bookmarks | `POST/DELETE /posts/{id}/bookmark` |
 
@@ -105,6 +105,8 @@ Base: `/api`
 | `/offers/compare` | Compare offers side by side |
 | `/offers/submit` | Post an update |
 | `/offers/[id]` | Post detail |
+| `/search` | Google Places text search (`?criteria=` when results shown) |
+| `/details/[placeId]` | Place details (Google Places) + matching offers, published comparisons, posts |
 | `/me` | User dashboard |
 | `/settings` | Account settings |
 | `/login` · `/signup` | Auth |

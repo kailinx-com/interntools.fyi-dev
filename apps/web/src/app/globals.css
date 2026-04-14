@@ -235,24 +235,17 @@
   --neutral-surface-dark: oklch(0.269 0 0);
 }
 
-/* Custom scrollbar */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
 
+  html {
+    @apply overflow-x-clip;
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground antialiased min-h-screen;
-  }
-
-  * {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  *::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
   }
 }

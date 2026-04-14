@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/src/test/java/com/interntoolsfyi/**/*.java)",
+      "Bash(cat /Users/kailinx/Projects/interntools.fyi/interntools.fyi-dev/apps/api/src/main/java/com/interntoolsfyi/user/config/*.java)",
+      "Bash(pnpm next:*)",
+      "Bash(pnpm --filter web dev)",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(pnpm jest:*)"
+    ]
+  }
+}

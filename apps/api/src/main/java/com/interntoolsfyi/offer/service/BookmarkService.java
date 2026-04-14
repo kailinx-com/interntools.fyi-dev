@@ -65,7 +65,9 @@ public class BookmarkService {
   public List<PostSummaryResponse> listBookmarks(Authentication auth) {
     User user = requireUser(auth);
     return savedPostRepository.findByUserOrderByCreatedAtDesc(user).stream()
-        .map(sp -> toSummary(sp.getPost()))
+        .map(SavedPost::getPost)
+        .filter(p -> p.getStatus() == PostStatus.published)
+        .map(this::toSummary)
         .toList();
   }
 
@@ -74,12 +76,13 @@ public class BookmarkService {
         p.getId(),
         p.getType(),
         p.getTitle(),
+        p.getOfficeLocation(),
         p.getVisibility(),
         p.getStatus(),
         p.getAuthor().getUsername(),
         p.getPublishedAt(),
         p.getCreatedAt(),
-        true); // always bookmarked in this context
+        true);
   }
 
   private Post requirePublishedPost(Long postId) {

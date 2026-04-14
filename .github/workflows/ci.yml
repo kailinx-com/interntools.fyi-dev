@@ -1,0 +1,79 @@
+# Runs every automated test in the repo:
+# - apps/api: Maven Surefire — all `src/test/java` (unit + @SpringBootTest / MockMvc)
+# - apps/web: Jest — all `*.test.*` under src (e2e/ excluded in jest.config), with coverage + thresholds
+# - apps/web: Playwright — every file in tests/e2e/*.spec.ts on Chromium (full stack; API + Next via playwright.config webServer)
+# Cross-browser Playwright (Firefox / WebKit / mobile) is opt-in: E2E_FULL=1 pnpm run test:e2e locally or in a separate workflow.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Unit and integration tests
+        run: ./mvnw -B test
+
+  web-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Jest (all unit/integration tests + coverage thresholds)
+        run: pnpm exec jest --ci --coverage
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Playwright (all E2E spec files, Chromium)
+        run: pnpm exec playwright test tests/e2e --project=chromium
+        env:
+          CI: "true"

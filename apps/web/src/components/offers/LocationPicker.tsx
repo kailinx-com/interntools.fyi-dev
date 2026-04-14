@@ -3,81 +3,43 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import {
+  fetchPlaceAutocompleteSuggestions,
+  getPlacesApiKey,
+  type PlaceAutocompleteSuggestion,
+} from "@/lib/places/client";
 
-export type PlaceSuggestion = {
-  placeId: string;
-  description: string;
-};
-
-type GoogleAutocompletePrediction = {
-  placePrediction: {
-    placeId: string;
-    text: { text: string };
-  };
-};
-
-type GoogleAutocompleteResponse = {
-  suggestions?: GoogleAutocompletePrediction[];
-};
-
-function getApiKey(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ?? "";
-}
-
-async function fetchPlaceSuggestions(
-  input: string,
-): Promise<PlaceSuggestion[]> {
-  const apiKey = getApiKey();
-  if (!input.trim() || !apiKey) return [];
-
-  const res = await fetch(
-    "https://places.googleapis.com/v1/places:autocomplete",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-      },
-      body: JSON.stringify({
-        input,
-        includedPrimaryTypes: [
-          "locality",
-          "administrative_area_level_1",
-          "sublocality",
-        ],
-        languageCode: "en",
-      }),
-    },
-  );
-
-  if (!res.ok) return [];
-
-  const data: GoogleAutocompleteResponse = await res.json();
-
-  return (
-    data.suggestions?.map((s) => ({
-      placeId: s.placePrediction.placeId,
-      description: s.placePrediction.text.text,
-    })) ?? []
-  );
-}
+export type PlaceSuggestion = PlaceAutocompleteSuggestion;
 
 type LocationPickerProps = {
   value: string;
   onChange: (value: string) => void;
+  onPickSuggestion?: (suggestion: PlaceAutocompleteSuggestion) => void;
+  emitValueOnInput?: boolean;
   placeholder?: string;
   className?: string;
+  containerClassName?: string;
   disabled?: boolean;
+  showMapPin?: boolean;
+  inputId?: string;
+  inputTestId?: string;
 };
 
 export function LocationPicker({
   value,
   onChange,
+  onPickSuggestion,
+  emitValueOnInput = true,
   placeholder = "Search city…",
   className,
+  containerClassName,
   disabled,
+  showMapPin = true,
+  inputId,
+  inputTestId = "location-input",
 }: LocationPickerProps) {
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [inputValue, setInputValue] = useState(value);
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -101,34 +63,41 @@ export function LocationPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleInputChange = useCallback((nextInput: string) => {
-    setInputValue(nextInput);
-    setHighlightIndex(-1);
+  const handleInputChange = useCallback(
+    (nextInput: string) => {
+      setInputValue(nextInput);
+      setHighlightIndex(-1);
+      if (emitValueOnInput) {
+        onChange(nextInput);
+      }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!nextInput.trim()) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
+      if (!nextInput.trim() || !getPlacesApiKey()) {
+        setSuggestions([]);
+        setOpen(false);
+        return;
+      }
 
-    debounceRef.current = setTimeout(() => {
-      void fetchPlaceSuggestions(nextInput).then((results) => {
-        setSuggestions(results);
-        setOpen(results.length > 0);
-      });
-    }, 300);
-  }, []);
+      debounceRef.current = setTimeout(() => {
+        void fetchPlaceAutocompleteSuggestions(nextInput).then((results) => {
+          setSuggestions(results);
+          setOpen(results.length > 0);
+        });
+      }, 300);
+    },
+    [emitValueOnInput, onChange],
+  );
 
   const selectSuggestion = useCallback(
-    (suggestion: PlaceSuggestion) => {
+    (suggestion: PlaceAutocompleteSuggestion) => {
       onChange(suggestion.description);
       setInputValue(suggestion.description);
+      onPickSuggestion?.(suggestion);
       setSuggestions([]);
       setOpen(false);
     },
-    [onChange],
+    [onChange, onPickSuggestion],
   );
 
   const handleKeyDown = useCallback(
@@ -157,28 +126,43 @@ export function LocationPicker({
     [open, suggestions, highlightIndex, selectSuggestion],
   );
 
-  if (!getApiKey()) {
+  if (!getPlacesApiKey()) {
     return (
-      <div className="flex items-center gap-1">
-        <MapPin className="size-3 text-muted-foreground shrink-0" />
-        <input
-          type="text"
-          value={value}
-          readOnly
-          placeholder="Set NEXT_PUBLIC_GOOGLE_PLACES_API_KEY"
-          className="text-xs h-8 w-full bg-transparent outline-none text-muted-foreground"
-          disabled
-        />
+      <div ref={containerRef} className={cn("relative", containerClassName)}>
+        <div className="flex items-center gap-2">
+          {showMapPin ? (
+            <MapPin className="size-4 text-muted-foreground shrink-0" aria-hidden />
+          ) : null}
+          <Input
+            id={inputId}
+            data-testid={inputTestId}
+            type="text"
+            placeholder={placeholder}
+            className={className ?? "text-sm h-10"}
+            disabled={disabled}
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Add <code className="text-[10px]">NEXT_PUBLIC_GOOGLE_PLACES_API_KEY</code> for address
+          autocomplete.
+        </p>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <div className="flex items-center gap-1">
-        <MapPin className="size-3 text-muted-foreground shrink-0" />
+    <div ref={containerRef} className={cn("relative", containerClassName)}>
+      <div className="flex items-center gap-2">
+        {showMapPin ? (
+          <MapPin className="size-4 text-muted-foreground shrink-0" aria-hidden />
+        ) : null}
         <Input
-          data-testid="location-input"
+          id={inputId}
+          data-testid={inputTestId}
+          type="text"
           placeholder={placeholder}
           className={className ?? "text-xs h-8"}
           disabled={disabled}
@@ -194,11 +178,11 @@ export function LocationPicker({
       {open && suggestions.length > 0 && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 w-full rounded-md border bg-popover p-1 shadow-md"
+          className="absolute z-50 mt-1 w-full min-w-48 rounded-md border bg-popover p-1 shadow-md max-h-60 overflow-auto"
         >
           {suggestions.map((s, i) => (
             <li
-              key={s.placeId}
+              key={`${s.placeId}-${i}`}
               role="option"
               aria-selected={i === highlightIndex}
               data-testid="location-suggestion"

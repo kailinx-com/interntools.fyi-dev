@@ -166,6 +166,12 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <!--
+                      JaCoCo: `mvn -f apps/api/pom.xml verify` runs tests, `jacoco:report`, and `jacoco:check`.
+                      HTML report: apps/api/target/site/jacoco/index.html (full module; drill into packages for posts/offers).
+                      The check uses BUNDLE LINE+BRANCH at 1.0; narrowing gates to a subtree uses
+                      https://www.jacoco.org/jacoco/trunk/doc/check-mojo.html (includes/rules) if the team agrees.
+                    -->
                     <execution>
                         <id>check</id>
                         <phase>verify</phase>

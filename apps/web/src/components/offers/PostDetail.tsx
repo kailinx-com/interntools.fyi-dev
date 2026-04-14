@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { Bookmark, Pencil } from "lucide-react";
+import { Bookmark, MapPin, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LockedPaycheckSection } from "@/components/paycheck/LockedPaycheckSection";
@@ -32,27 +32,21 @@ import {
   updatePost,
   bookmarkPost,
   unbookmarkPost,
+  type Offer,
   type PostDetailResponse,
   type CommentResponse,
   type VoteTallyResponse,
 } from "@/lib/offers/api";
+import { formatOfferCompensationLine } from "@/lib/offers/formatOffer";
+import { postLocationLine } from "@/lib/offers/postLocationDisplay";
+import { LocationPicker } from "@/components/offers/LocationPicker";
 
-type OfferSnapshot = {
-  company?: string;
-  role?: string;
-  compensation?: string;
-  label?: string;
-  [key: string]: unknown;
-};
+type VoteBarOption = { label: string };
 
-function parseSnapshots(raw: string | null | undefined): OfferSnapshot[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function voteBarOptionsFromOffers(offers: Offer[]): VoteBarOption[] {
+  return offers.map((o, i) => ({
+    label: o.company?.trim() || `Option ${String.fromCharCode(65 + i)}`,
+  }));
 }
 
 function initials(username: string): string {
@@ -74,11 +68,11 @@ function relativeTime(dateStr: string | null): string {
 
 function VoteSection({
   postId,
-  snapshots,
+  options,
   tally: initialTally,
 }: {
   postId: number;
-  snapshots: OfferSnapshot[];
+  options: VoteBarOption[];
   tally: VoteTallyResponse | null;
 }) {
   const { token } = useAuth();
@@ -104,7 +98,7 @@ function VoteSection({
 
   return (
     <div className="space-y-4">
-      {snapshots.map((snap, i) => {
+      {options.map((opt, i) => {
         const key = String(i);
         const votes = tallyMap[key] ?? 0;
         const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
@@ -117,7 +111,7 @@ function VoteSection({
           >
             <div className="flex justify-between text-xs font-semibold mb-1.5">
               <span className={votedIndex === i ? "text-primary" : ""}>
-                {snap.label ?? snap.company ?? `Option ${String.fromCharCode(65 + i)}`}
+                {opt.label}
               </span>
               <span>{pct}%</span>
             </div>
@@ -179,7 +173,12 @@ function CommentItem({
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-semibold">@{comment.authorUsername}</span>
+          <Link
+            href={`/profile/${comment.authorUsername}`}
+            className="text-sm font-semibold hover:underline"
+          >
+            @{comment.authorUsername}
+          </Link>
           <span className="text-xs text-muted-foreground">{relativeTime(comment.createdAt)}</span>
           {comment.editedAt && <span className="text-xs text-muted-foreground">(edited)</span>}
         </div>
@@ -330,6 +329,7 @@ export function PostDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [editOfficeLocation, setEditOfficeLocation] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -359,6 +359,7 @@ export function PostDetail() {
     if (post) {
       setEditTitle(post.title);
       setEditBody(post.body ?? "");
+      setEditOfficeLocation(post.officeLocation ?? "");
       setBookmarked(post.bookmarked);
     }
   }, [post]);
@@ -370,10 +371,14 @@ export function PostDetail() {
       await updatePost(token, post.id, {
         title: editTitle,
         body: editBody || null,
+        officeLocation:
+          post.type === "comparison" ? null : editOfficeLocation.trim() || null,
         type: post.type,
         status: post.status,
         visibility: post.visibility,
-        offerSnapshots: post.offerSnapshots ?? undefined,
+        ...(post.comparisonId != null
+          ? { comparisonId: post.comparisonId }
+          : { offers: post.offers.map((o) => ({ offerId: o.id })) }),
       });
       setIsEditing(false);
       await load();
@@ -390,10 +395,13 @@ export function PostDetail() {
       await updatePost(token, post.id, {
         title: post.title,
         body: post.body ?? null,
+        officeLocation: post.type === "comparison" ? null : post.officeLocation ?? null,
         type: post.type,
         status: "published",
         visibility: post.visibility,
-        offerSnapshots: post.offerSnapshots ?? undefined,
+        ...(post.comparisonId != null
+          ? { comparisonId: post.comparisonId }
+          : { offers: post.offers.map((o) => ({ offerId: o.id })) }),
       });
       await load();
     } catch {
@@ -421,7 +429,9 @@ export function PostDetail() {
     );
   }
 
-  const snapshots = parseSnapshots(post.offerSnapshots);
+  const offers = post.offers ?? [];
+  const locationLine = postLocationLine(post.type, post.officeLocation, offers);
+  const voteBar = voteBarOptionsFromOffers(offers);
   const bodyParagraphs = post.body
     ? post.body.split(/\n\n+/).filter(Boolean)
     : [];
@@ -438,9 +448,7 @@ export function PostDetail() {
         >
         <div className="space-y-12">
         <div className={post.type === "comparison" ? "grid grid-cols-1 md:grid-cols-12 gap-10 items-start" : ""}>
-          {/* Main content */}
           <div className={post.type === "comparison" ? "md:col-span-8 space-y-10" : "space-y-10"}>
-            {/* Author */}
             <div className="flex items-center gap-3">
               <Avatar>
                 <AvatarFallback>
@@ -448,7 +456,12 @@ export function PostDetail() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-semibold">@{post.authorUsername}</p>
+                <Link
+                  href={`/profile/${post.authorUsername}`}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  @{post.authorUsername}
+                </Link>
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">
                   Posted {relativeTime(post.publishedAt ?? post.createdAt)} ·{" "}
                   {post.type}
@@ -491,7 +504,6 @@ export function PostDetail() {
               </div>
             </div>
 
-            {/* Draft publish banner */}
             {isAuthor && post.status === "draft" && !isEditing && (
               <div className="flex items-center justify-between rounded-lg border border-dashed p-4 text-sm">
                 <span className="text-muted-foreground">This post is a draft and not visible to the community.</span>
@@ -502,7 +514,6 @@ export function PostDetail() {
               </div>
             )}
 
-            {/* Title */}
             {isEditing ? (
               <Input
                 value={editTitle}
@@ -516,7 +527,28 @@ export function PostDetail() {
               </h1>
             )}
 
-            {/* Body */}
+            {isEditing && post.type !== "comparison" ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="edit-office-location">
+                  Location (optional)
+                </label>
+                <LocationPicker
+                  inputId="edit-office-location"
+                  inputTestId="edit-office-location-input"
+                  value={editOfficeLocation}
+                  onChange={setEditOfficeLocation}
+                  placeholder="Search city, region, or place…"
+                  containerClassName="w-full max-w-xl"
+                  className="h-10 w-full text-sm"
+                />
+              </div>
+            ) : !isEditing && locationLine ? (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="size-3.5 shrink-0" aria-hidden />
+                {locationLine}
+              </p>
+            ) : null}
+
             {isEditing ? (
               <div className="space-y-3">
                 <Textarea
@@ -535,7 +567,12 @@ export function PostDetail() {
                   <Button
                     variant="outline"
                     disabled={isSaving}
-                    onClick={() => { setIsEditing(false); setEditTitle(post.title); setEditBody(post.body ?? ""); }}
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditTitle(post.title);
+                      setEditBody(post.body ?? "");
+                      setEditOfficeLocation(post.officeLocation ?? "");
+                    }}
                   >
                     Cancel
                   </Button>
@@ -551,12 +588,21 @@ export function PostDetail() {
               </div>
             ) : null}
 
-            {/* Offer details / Comparison table */}
-            {snapshots.length > 0 && (
+            {offers.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-lg font-bold">
                   {post.type === "comparison" ? "Offer Comparison" : "Offer Details"}
                 </h2>
+                {post.comparisonId != null && (
+                  <p className="text-sm text-muted-foreground">
+                    <Link
+                      className="text-primary font-medium underline-offset-4 hover:underline"
+                      href={`/offers/compare?comparison=${String(post.comparisonId)}`}
+                    >
+                      Open linked comparison
+                    </Link>
+                  </p>
+                )}
                 <Card className="shadow-none overflow-hidden">
                   <CardContent className="p-0">
                     <Table>
@@ -565,10 +611,9 @@ export function PostDetail() {
                           <TableHead className="px-6 py-4 text-xs uppercase tracking-widest text-muted-foreground w-[200px]">
                             Detail
                           </TableHead>
-                          {snapshots.map((s, i) => (
-                            <TableHead key={i} className="px-6 py-4 font-bold">
-                              {s.label ??
-                                s.company ??
+                          {offers.map((o, i) => (
+                            <TableHead key={o.id} className="px-6 py-4 font-bold">
+                              {o.company?.trim() ||
                                 `Option ${String.fromCharCode(65 + i)}`}
                             </TableHead>
                           ))}
@@ -579,9 +624,9 @@ export function PostDetail() {
                           <TableCell className="px-6 py-4 text-sm text-muted-foreground">
                             Company
                           </TableCell>
-                          {snapshots.map((s, i) => (
-                            <TableCell key={i} className="px-6 py-4 font-bold">
-                              {s.company ?? "—"}
+                          {offers.map((o) => (
+                            <TableCell key={o.id} className="px-6 py-4 font-bold">
+                              {o.company ?? "—"}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -589,9 +634,9 @@ export function PostDetail() {
                           <TableCell className="px-6 py-4 text-sm text-muted-foreground">
                             Role
                           </TableCell>
-                          {snapshots.map((s, i) => (
-                            <TableCell key={i} className="px-6 py-4 font-bold">
-                              {s.role ?? "—"}
+                          {offers.map((o) => (
+                            <TableCell key={o.id} className="px-6 py-4 font-bold">
+                              {o.title ?? "—"}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -599,9 +644,9 @@ export function PostDetail() {
                           <TableCell className="px-6 py-4 text-sm text-muted-foreground">
                             Compensation
                           </TableCell>
-                          {snapshots.map((s, i) => (
-                            <TableCell key={i} className="px-6 py-4 font-bold">
-                              {s.compensation ?? "—"}
+                          {offers.map((o) => (
+                            <TableCell key={o.id} className="px-6 py-4 font-bold">
+                              {formatOfferCompensationLine(o)}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -613,10 +658,9 @@ export function PostDetail() {
             )}
           </div>
 
-          {/* Sidebar — comparisons only */}
           {post.type === "comparison" && (
             <aside className="md:col-span-4 space-y-6 md:sticky md:top-24">
-              {snapshots.length > 0 && (
+              {voteBar.length > 0 && (
                 <Card className="shadow-none">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-base">Community Vote</CardTitle>
@@ -624,7 +668,7 @@ export function PostDetail() {
                   <CardContent>
                     <VoteSection
                       postId={post.id}
-                      snapshots={snapshots}
+                      options={voteBar}
                       tally={tally}
                     />
                   </CardContent>
@@ -634,7 +678,6 @@ export function PostDetail() {
           )}
         </div>
 
-        {/* Comments — full width below post */}
         <div className="space-y-6">
           <h2 className="text-xl font-bold">
             Comments ({comments.length})

@@ -29,7 +29,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 
-/** Unit tests that exercise every delegate in {@link PaycheckController} for coverage. */
 @ExtendWith(MockitoExtension.class)
 class PaycheckControllerTest {
 

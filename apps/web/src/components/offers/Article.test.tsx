@@ -1,10 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { Offer } from "@/lib/offers/api";
 import { Article } from "./Article";
 
+const mockPush = jest.fn();
 const mockBookmarkPost = jest.fn();
 const mockUnbookmarkPost = jest.fn();
 const mockUseAuth = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock("@/lib/offers/api", () => ({
   bookmarkPost: (...args: unknown[]) => mockBookmarkPost(...args),
@@ -20,6 +26,7 @@ function makePost(overrides = {}) {
     id: 1,
     type: "acceptance" as const,
     title: "Offer update",
+    officeLocation: null as string | null,
     visibility: "public_post" as const,
     status: "published" as const,
     authorUsername: "alice",
@@ -30,19 +37,45 @@ function makePost(overrides = {}) {
   };
 }
 
+function offer(overrides: Partial<Offer> & Pick<Offer, "id" | "company">): Offer {
+  return {
+    title: "",
+    employmentType: "internship",
+    compensationType: "hourly",
+    payAmount: 60,
+    hoursPerWeek: null,
+    signOnBonus: null,
+    relocationAmount: null,
+    equityNotes: null,
+    officeLocation: null,
+    daysInOffice: null,
+    notes: null,
+    favorite: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
 describe("Article", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuth.mockReturnValue({ token: "tok" });
   });
 
-  it("renders single snapshot card details", () => {
+  it("renders single-offer card details", () => {
     render(
       <Article
         post={makePost()}
-        offerSnapshots={JSON.stringify([
-          { label: "Acceptance", company: "Google", role: "SWE", compensation: "$60/hr" },
-        ])}
+        offers={[
+          offer({
+            id: 1,
+            company: "Google",
+            title: "SWE",
+            compensationType: "hourly",
+            payAmount: 60,
+          }),
+        ]}
       />,
     );
 
@@ -52,7 +85,7 @@ describe("Article", () => {
 
   it("bookmarks when currently unbookmarked", async () => {
     const user = userEvent.setup();
-    render(<Article post={makePost({ bookmarked: false })} offerSnapshots={null} />);
+    render(<Article post={makePost({ bookmarked: false })} offers={[]} />);
 
     const buttons = screen.getAllByRole("button");
     await user.click(buttons[buttons.length - 1]);
@@ -62,7 +95,7 @@ describe("Article", () => {
 
   it("unbookmarks when currently bookmarked", async () => {
     const user = userEvent.setup();
-    render(<Article post={makePost({ bookmarked: true })} offerSnapshots={null} />);
+    render(<Article post={makePost({ bookmarked: true })} offers={[]} />);
 
     const buttons = screen.getAllByRole("button");
     await user.click(buttons[buttons.length - 1]);
@@ -73,7 +106,7 @@ describe("Article", () => {
   it("does not toggle bookmark when unauthenticated", async () => {
     const user = userEvent.setup();
     mockUseAuth.mockReturnValue({ token: null });
-    render(<Article post={makePost({ bookmarked: false })} offerSnapshots={null} />);
+    render(<Article post={makePost({ bookmarked: false })} offers={[]} />);
 
     const buttons = screen.getAllByRole("button");
     await user.click(buttons[buttons.length - 1]);
@@ -82,20 +115,65 @@ describe("Article", () => {
     expect(mockUnbookmarkPost).not.toHaveBeenCalled();
   });
 
-  it("renders comparison snapshots and handles invalid snapshot JSON", () => {
-    const { rerender } = render(
+  it("shows joined offer office locations in the subtitle for comparison posts", () => {
+    render(
       <Article
-        post={makePost({ type: "comparison" })}
-        offerSnapshots={JSON.stringify([
-          { label: "Option A", company: "A", role: "SWE", compensation: "$50/hr" },
-          { label: "Option B", company: "B", role: "PM", compensation: "$55/hr" },
-        ])}
+        post={makePost({ type: "comparison", officeLocation: "Stale post office" })}
+        offers={[
+          offer({
+            id: 1,
+            company: "A",
+            title: "SWE",
+            compensationType: "hourly",
+            payAmount: 50,
+            officeLocation: "Chicago",
+          }),
+          offer({
+            id: 2,
+            company: "B",
+            title: "PM",
+            compensationType: "hourly",
+            payAmount: 55,
+            officeLocation: "Denver",
+          }),
+        ]}
       />,
     );
-    expect(screen.getByText("Option A")).toBeInTheDocument();
-    expect(screen.getByText("Option B")).toBeInTheDocument();
+    expect(screen.getByText("Chicago · Denver")).toBeInTheDocument();
+    expect(screen.queryByText(/Stale post office/)).not.toBeInTheDocument();
+  });
 
-    rerender(<Article post={makePost()} offerSnapshots={"not-json"} />);
-    expect(screen.queryByText("Option A")).not.toBeInTheDocument();
+  it("renders multiple offers for comparison posts", () => {
+    render(
+      <Article
+        post={makePost({ type: "comparison" })}
+        offers={[
+          offer({
+            id: 1,
+            company: "A",
+            title: "SWE",
+            compensationType: "hourly",
+            payAmount: 50,
+          }),
+          offer({
+            id: 2,
+            company: "B",
+            title: "PM",
+            compensationType: "hourly",
+            payAmount: 55,
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getAllByText("A").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("B").length).toBeGreaterThan(0);
+  });
+
+  it("renders author username as a clickable link to /profile/{username}", () => {
+    render(<Article post={makePost()} />);
+    const authorLink = screen.getByRole("link", {
+      name: /view profile of @alice/i,
+    });
+    expect(authorLink).toHaveAttribute("href", "/profile/alice");
   });
 });

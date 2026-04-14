@@ -10,15 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.interntoolsfyi.auth.service.JwtService;
 import com.interntoolsfyi.offer.model.Post;
-import com.interntoolsfyi.offer.model.PostStatus;
-import com.interntoolsfyi.offer.model.PostType;
-import com.interntoolsfyi.offer.model.PostVisibility;
+import com.interntoolsfyi.offer.repository.OfferRepository;
 import com.interntoolsfyi.offer.repository.PostRepository;
+import com.interntoolsfyi.offer.testsupport.PostFixtures;
 import com.interntoolsfyi.offer.repository.SavedPostRepository;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
-import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +34,7 @@ import org.springframework.web.context.WebApplicationContext;
 class BookmarkControllerIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private PostRepository postRepository;
+  @Autowired private OfferRepository offerRepository;
   @Autowired private SavedPostRepository savedPostRepository;
   @Autowired private JwtService jwtService;
   @Autowired private WebApplicationContext webApplicationContext;
@@ -48,6 +47,7 @@ class BookmarkControllerIntegrationTest {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
     savedPostRepository.deleteAll();
     postRepository.deleteAll();
+    offerRepository.deleteAll();
     userRepository.deleteAll();
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
@@ -68,6 +68,63 @@ class BookmarkControllerIntegrationTest {
         .andExpect(status().isNoContent());
 
     assertThat(savedPostRepository.findByUserOrderByCreatedAtDesc(viewer)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("deleting a post removes bookmarks for that post (including author’s own bookmark)")
+  void deletingPostRemovesBookmarksIncludingAuthorBookmark() throws Exception {
+    User author = createUser("bookmark-author-self-delete");
+    Post post = createPublishedPost(author, "My post I bookmarked");
+
+    mockMvc
+        .perform(
+            post("/posts/{postId}/bookmark", post.getId())
+                .header(HttpHeaders.AUTHORIZATION, authHeaderFor(author)))
+        .andExpect(status().isNoContent());
+
+    assertThat(savedPostRepository.findByUserOrderByCreatedAtDesc(author)).hasSize(1);
+
+    mockMvc
+        .perform(
+            delete("/posts/{id}", post.getId())
+                .header(HttpHeaders.AUTHORIZATION, authHeaderFor(author)))
+        .andExpect(status().isNoContent());
+
+    assertThat(savedPostRepository.findByUserOrderByCreatedAtDesc(author)).isEmpty();
+
+    mockMvc
+        .perform(get("/posts/bookmarks").header(HttpHeaders.AUTHORIZATION, authHeaderFor(author)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("deleting a post removes bookmarks for other users who saved that post")
+  void deletingPostRemovesViewerBookmarks() throws Exception {
+    User author = createUser("bookmark-author-delete-viewer");
+    User viewer = createUser("bookmark-viewer-deleted-post");
+    Post post = createPublishedPost(author, "Post viewer bookmarked");
+
+    mockMvc
+        .perform(
+            post("/posts/{postId}/bookmark", post.getId())
+                .header(HttpHeaders.AUTHORIZATION, authHeaderFor(viewer)))
+        .andExpect(status().isNoContent());
+
+    assertThat(savedPostRepository.findByUserOrderByCreatedAtDesc(viewer)).hasSize(1);
+
+    mockMvc
+        .perform(
+            delete("/posts/{id}", post.getId())
+                .header(HttpHeaders.AUTHORIZATION, authHeaderFor(author)))
+        .andExpect(status().isNoContent());
+
+    assertThat(savedPostRepository.findByUserOrderByCreatedAtDesc(viewer)).isEmpty();
+
+    mockMvc
+        .perform(get("/posts/bookmarks").header(HttpHeaders.AUTHORIZATION, authHeaderFor(viewer)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
   }
 
   @Test
@@ -172,24 +229,11 @@ class BookmarkControllerIntegrationTest {
   }
 
   private Post createPublishedPost(User author, String title) {
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setTitle(title);
-    post.setType(PostType.acceptance);
-    post.setStatus(PostStatus.published);
-    post.setVisibility(PostVisibility.public_post);
-    post.setPublishedAt(Instant.now());
-    return postRepository.saveAndFlush(post);
+    return PostFixtures.savePublishedPost(author, title, offerRepository, postRepository);
   }
 
   private Post createDraftPost(User author, String title) {
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setTitle(title);
-    post.setType(PostType.acceptance);
-    post.setStatus(PostStatus.draft);
-    post.setVisibility(PostVisibility.public_post);
-    return postRepository.saveAndFlush(post);
+    return PostFixtures.saveDraftPost(author, title, offerRepository, postRepository);
   }
 
   private String authHeaderFor(User user) {

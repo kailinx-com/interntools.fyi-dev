@@ -18,6 +18,12 @@ describe("SignupCard", () => {
     jest.clearAllMocks();
   });
 
+  it("renders password field placeholders", () => {
+    render(<SignupCard />);
+    expect(screen.getByPlaceholderText("At least 8 characters")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Re-enter password")).toBeInTheDocument();
+  });
+
   it("validates mismatched passwords", async () => {
     const user = userEvent.setup({ delay: null });
     render(<SignupCard />);

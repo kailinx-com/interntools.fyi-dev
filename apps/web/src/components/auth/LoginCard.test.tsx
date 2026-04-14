@@ -21,6 +21,11 @@ describe("LoginCard", () => {
     mockGet.mockReturnValue(null);
   });
 
+  it("renders password placeholder", () => {
+    render(<LoginCard />);
+    expect(screen.getByPlaceholderText("Your password")).toBeInTheDocument();
+  });
+
   it("shows backend error when login fails", async () => {
     const user = userEvent.setup();
     mockLogin.mockRejectedValue(new Error("Invalid username or password"));
@@ -52,6 +57,26 @@ describe("LoginCard", () => {
       }),
     );
     expect(mockPush).toHaveBeenCalledWith("/offers");
+  });
+
+  it("logs in with email identifier and passes it to login", async () => {
+    const user = userEvent.setup();
+    mockLogin.mockResolvedValue({ username: "student" });
+    render(<LoginCard />);
+
+    await user.type(
+      screen.getByLabelText("Username or email"),
+      "student@example.com",
+    );
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByRole("button", { name: "Login" }));
+
+    await waitFor(() =>
+      expect(mockLogin).toHaveBeenCalledWith({
+        identifier: "student@example.com",
+        password: "password123",
+      }),
+    );
   });
 
   it("blocks unsafe redirect and falls back to /", async () => {

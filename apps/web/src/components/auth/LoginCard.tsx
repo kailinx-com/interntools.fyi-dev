@@ -89,6 +89,7 @@ export function LoginCard() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Your password"
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

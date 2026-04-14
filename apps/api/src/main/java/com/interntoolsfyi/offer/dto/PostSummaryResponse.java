@@ -9,6 +9,7 @@ public record PostSummaryResponse(
     Long id,
     PostType type,
     String title,
+    String officeLocation,
     PostVisibility visibility,
     PostStatus status,
     String authorUsername,

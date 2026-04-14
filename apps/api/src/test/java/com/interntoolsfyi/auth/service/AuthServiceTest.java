@@ -3,6 +3,7 @@ package com.interntoolsfyi.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,8 @@ class AuthServiceTest {
       assertThat(response.username()).isEqualTo("new-user");
       assertThat(response.email()).isEqualTo("new-user@example.com");
       assertThat(response.role()).isEqualTo(Role.STUDENT);
+      assertThat(response.firstName()).isEqualTo("New");
+      assertThat(response.lastName()).isEqualTo("User");
     }
 
     @Test
@@ -85,6 +88,31 @@ class AuthServiceTest {
       assertThatThrownBy(() -> authService.register(request))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Email already taken");
+    }
+
+    @Test
+    @DisplayName("ignores ADMIN in register request and always persists STUDENT")
+    void ignoresAdminRoleInRequest() {
+      RegisterRequest request =
+          new RegisterRequest(
+              "new-user",
+              "new-user@example.com",
+              "password123",
+              Role.ADMIN,
+              "New",
+              "User");
+      User saved =
+          new User("new-user", "new-user@example.com", "hashed", Role.STUDENT, "New", "User");
+
+      when(userRepository.existsByUsername("new-user")).thenReturn(false);
+      when(userRepository.existsByEmail("new-user@example.com")).thenReturn(false);
+      when(passwordEncoder.encode("password123")).thenReturn("hashed");
+      when(userRepository.save(argThat(u -> u.getRole() == Role.STUDENT))).thenReturn(saved);
+
+      AuthResponse response = authService.register(request);
+
+      assertThat(response.role()).isEqualTo(Role.STUDENT);
+      verify(userRepository).save(argThat(u -> u.getRole() == Role.STUDENT));
     }
   }
 
@@ -179,7 +207,7 @@ class AuthServiceTest {
       assertThatThrownBy(
               () ->
                   authService.updateProfile(
-                      "ghost", new UpdateProfileRequest("alice", "alice@example.com", null, null)))
+                      "ghost", new UpdateProfileRequest("alice", "alice@example.com", null, null, null, null)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("User not found");
     }
@@ -198,7 +226,7 @@ class AuthServiceTest {
       AuthResponse response =
           authService.updateProfile(
               "alice",
-              new UpdateProfileRequest("alice2", "alice2@example.com", "current-pass", "new-pass"));
+              new UpdateProfileRequest("alice2", "alice2@example.com", "current-pass", "new-pass", null, null));
 
       assertThat(response.username()).isEqualTo("alice2");
       assertThat(response.email()).isEqualTo("alice2@example.com");
@@ -215,7 +243,7 @@ class AuthServiceTest {
               () ->
                   authService.updateProfile(
                       "alice",
-                      new UpdateProfileRequest("alice", "alice@example.com", null, "new-pass")))
+                      new UpdateProfileRequest("alice", "alice@example.com", null, "new-pass", null, null)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Current password is incorrect");
     }
@@ -231,7 +259,7 @@ class AuthServiceTest {
               () ->
                   authService.updateProfile(
                       "alice",
-                      new UpdateProfileRequest("alice2", "alice2@example.com", "wrong", "new-pass")))
+                      new UpdateProfileRequest("alice2", "alice2@example.com", "wrong", "new-pass", null, null)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Current password is incorrect");
     }
@@ -248,7 +276,7 @@ class AuthServiceTest {
               () ->
                   authService.updateProfile(
                       "alice",
-                      new UpdateProfileRequest("taken", "alice@example.com", "current-pass", null)))
+                      new UpdateProfileRequest("taken", "alice@example.com", "current-pass", null, null, null)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Username already taken");
     }
@@ -262,7 +290,7 @@ class AuthServiceTest {
 
       AuthResponse response =
           authService.updateProfile(
-              "alice", new UpdateProfileRequest("alice", "alice@example.com", null, "   "));
+              "alice", new UpdateProfileRequest("alice", "alice@example.com", null, "   ", null, null));
 
       assertThat(user.getPasswordHash()).isEqualTo("old-hash");
       assertThat(response.username()).isEqualTo("alice");
@@ -277,7 +305,7 @@ class AuthServiceTest {
 
       AuthResponse response =
           authService.updateProfile(
-              "alice", new UpdateProfileRequest("   ", "alice@example.com", null, null));
+              "alice", new UpdateProfileRequest("   ", "alice@example.com", null, null, null, null));
 
       assertThat(response.username()).isEqualTo("alice");
       verify(userRepository, never()).existsByUsername(any());
@@ -292,7 +320,7 @@ class AuthServiceTest {
 
       AuthResponse response =
           authService.updateProfile(
-              "alice", new UpdateProfileRequest("", "alice@example.com", null, null));
+              "alice", new UpdateProfileRequest("", "alice@example.com", null, null, null, null));
 
       assertThat(response.username()).isEqualTo("alice");
       verify(userRepository, never()).existsByUsername(any());
@@ -306,7 +334,7 @@ class AuthServiceTest {
       when(userRepository.save(user)).thenReturn(user);
 
       AuthResponse response =
-          authService.updateProfile("alice", new UpdateProfileRequest("alice", "   ", null, null));
+          authService.updateProfile("alice", new UpdateProfileRequest("alice", "   ", null, null, null, null));
 
       assertThat(response.email()).isEqualTo("alice@example.com");
       verify(userRepository, never()).existsByEmail(any());
@@ -320,7 +348,7 @@ class AuthServiceTest {
       when(userRepository.save(user)).thenReturn(user);
 
       AuthResponse response =
-          authService.updateProfile("alice", new UpdateProfileRequest("alice", "alice@example.com", null, null));
+          authService.updateProfile("alice", new UpdateProfileRequest("alice", "alice@example.com", null, null, null, null));
 
       assertThat(response.username()).isEqualTo("alice");
       verify(userRepository).save(user);
@@ -334,7 +362,7 @@ class AuthServiceTest {
       when(userRepository.save(user)).thenReturn(user);
 
       AuthResponse response =
-          authService.updateProfile("alice", new UpdateProfileRequest(null, "alice@example.com", null, null));
+          authService.updateProfile("alice", new UpdateProfileRequest(null, "alice@example.com", null, null, null, null));
 
       assertThat(response.username()).isEqualTo("alice");
       assertThat(response.email()).isEqualTo("alice@example.com");
@@ -349,7 +377,7 @@ class AuthServiceTest {
       when(userRepository.save(user)).thenReturn(user);
 
       AuthResponse response =
-          authService.updateProfile("alice", new UpdateProfileRequest("alice", null, null, null));
+          authService.updateProfile("alice", new UpdateProfileRequest("alice", null, null, null, null, null));
 
       assertThat(response.email()).isEqualTo("alice@example.com");
       verify(userRepository).save(user);
@@ -367,7 +395,7 @@ class AuthServiceTest {
       AuthResponse response =
           authService.updateProfile(
               "alice",
-              new UpdateProfileRequest("alice", "new@example.com", "current-pass", null));
+              new UpdateProfileRequest("alice", "new@example.com", "current-pass", null, null, null));
 
       assertThat(response.email()).isEqualTo("new@example.com");
     }
@@ -385,7 +413,7 @@ class AuthServiceTest {
       AuthResponse response =
           authService.updateProfile(
               "alice",
-              new UpdateProfileRequest("newname", "new@example.com", "current-pass", null));
+              new UpdateProfileRequest("newname", "new@example.com", "current-pass", null, null, null));
 
       assertThat(response.username()).isEqualTo("newname");
       assertThat(response.email()).isEqualTo("new@example.com");
@@ -403,7 +431,7 @@ class AuthServiceTest {
       AuthResponse response =
           authService.updateProfile(
               "alice",
-              new UpdateProfileRequest("alice", "alice@example.com", "current-pass", "new-pass"));
+              new UpdateProfileRequest("alice", "alice@example.com", "current-pass", "new-pass", null, null));
 
       assertThat(user.getPasswordHash()).isEqualTo("new-hash");
       assertThat(response.username()).isEqualTo("alice");
@@ -422,9 +450,27 @@ class AuthServiceTest {
                   authService.updateProfile(
                       "alice",
                       new UpdateProfileRequest(
-                          "alice", "taken@example.com", "current-pass", null)))
+                          "alice", "taken@example.com", "current-pass", null, null, null)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage("Email already taken");
+    }
+
+    @Test
+    @DisplayName("updates firstName and lastName without requiring current password")
+    void updatesFirstLastNameWithoutPassword() {
+      User user = createUser("alice", "alice@example.com", "old-hash");
+      when(userRepository.findByUsername("alice")).thenReturn(Optional.of(user));
+      when(userRepository.save(user)).thenReturn(user);
+
+      AuthResponse response =
+          authService.updateProfile(
+              "alice",
+              new UpdateProfileRequest("alice", "alice@example.com", null, null, "Alicia", "Smithson"));
+
+      assertThat(user.getFirstName()).isEqualTo("Alicia");
+      assertThat(user.getLastName()).isEqualTo("Smithson");
+      assertThat(response.firstName()).isEqualTo("Alicia");
+      assertThat(response.lastName()).isEqualTo("Smithson");
     }
   }
 
@@ -432,13 +478,15 @@ class AuthServiceTest {
   @DisplayName("toAuthResponse")
   class ToAuthResponseTests {
     @Test
-    @DisplayName("maps user fields to the response record")
+    @DisplayName("maps user fields to the response record including firstName and lastName")
     void mapsUserFields() {
       User user = createUser("u", "u@example.com", "h");
       AuthResponse response = authService.toAuthResponse(user);
       assertThat(response.username()).isEqualTo("u");
       assertThat(response.email()).isEqualTo("u@example.com");
       assertThat(response.role()).isEqualTo(Role.STUDENT);
+      assertThat(response.firstName()).isEqualTo("Test");
+      assertThat(response.lastName()).isEqualTo("User");
     }
   }
 

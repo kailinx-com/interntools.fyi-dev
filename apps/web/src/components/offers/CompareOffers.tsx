@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -31,7 +31,15 @@ import {
   type SavedPlannerDocumentSummary,
 } from "@/lib/paycheck/api";
 import { saveCompareOffersDraft } from "@/lib/offers";
-import { createComparison, fetchComparison, fetchOffer, fetchOffers, type Offer } from "@/lib/offers/api";
+import {
+  createComparison,
+  createOffer,
+  fetchComparison,
+  fetchOffer,
+  fetchOffers,
+  type Offer,
+  type OfferRequest,
+} from "@/lib/offers/api";
 
 type EditableOffer = {
   uid: string;
@@ -138,6 +146,15 @@ export function CompareOffers() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const offerIdParam = searchParams.get("offer");
+  const comparisonIdParam = searchParams.get("comparison");
+  const needsUrlHydration = Boolean(offerIdParam) || Boolean(comparisonIdParam);
+
+  const [urlHydration, setUrlHydration] = useState<"idle" | "loading" | "done">(() =>
+    needsUrlHydration ? "loading" : "idle",
+  );
+  const hydrateGeneration = useRef(0);
+
   useEffect(() => {
     setHasDraft(!!getStoredPaycheckConfig());
     setHasPlannerDraft(getStoredPlannerData().expenses.length > 0);
@@ -161,36 +178,57 @@ export function CompareOffers() {
   useEffect(() => {
     const offerId = searchParams.get("offer");
     const comparisonId = searchParams.get("comparison");
-    if (!token) return;
+    if (!token) {
+      setUrlHydration(offerId || comparisonId ? "loading" : "idle");
+      return;
+    }
+    if (!offerId && !comparisonId) {
+      setUrlHydration("idle");
+      return;
+    }
+
+    const gen = ++hydrateGeneration.current;
+    setUrlHydration("loading");
+
     if (offerId) {
       fetchOffer(token, Number(offerId))
         .then((o) => {
+          if (gen !== hydrateGeneration.current) return;
           setOffers((prev) => {
             const next = [...prev];
             next[0] = offerToEditable(o);
             return next;
           });
         })
-        .catch(() => {});
-    } else if (comparisonId) {
-      fetchComparison(token, Number(comparisonId))
-        .then(async (comparison) => {
-          const ids = comparison.includedOfferIds ?? [];
-          let editables: EditableOffer[];
-          if (ids.length > 0) {
-            const fetched = await Promise.all(ids.map((id) => fetchOffer(token, id)));
-            editables = fetched.map(offerToEditable);
-          } else if (comparison.computedMetrics) {
-            const snapshots = JSON.parse(comparison.computedMetrics) as Partial<EditableOffer>[];
-            editables = snapshots.map((s) => ({ ...emptyOffer(), ...s, uid: crypto.randomUUID() }));
-          } else {
-            return;
-          }
-          while (editables.length < 2) editables.push(emptyOffer());
-          setOffers(editables);
-        })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          if (gen === hydrateGeneration.current) setUrlHydration("done");
+        });
+      return;
     }
+
+    fetchComparison(token, Number(comparisonId))
+      .then(async (comparison) => {
+        if (gen !== hydrateGeneration.current) return;
+        const ids = comparison.includedOfferIds ?? [];
+        let editables: EditableOffer[];
+        if (ids.length > 0) {
+          const fetched = await Promise.all(ids.map((id) => fetchOffer(token, id)));
+          editables = fetched.map(offerToEditable);
+        } else if (comparison.computedMetrics) {
+          const snapshots = JSON.parse(comparison.computedMetrics) as Partial<EditableOffer>[];
+          editables = snapshots.map((s) => ({ ...emptyOffer(), ...s, uid: crypto.randomUUID() }));
+        } else {
+          return;
+        }
+        if (gen !== hydrateGeneration.current) return;
+        while (editables.length < 2) editables.push(emptyOffer());
+        setOffers(editables);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (gen === hydrateGeneration.current) setUrlHydration("done");
+      });
   }, [searchParams, token]);
 
   const applyPaycheckConfig = useCallback(
@@ -313,13 +351,15 @@ export function CompareOffers() {
       ...prev,
       {
         ...emptyOffer(),
-        company: savedOffer.company,
-        role: savedOffer.title,
-        location: savedOffer.officeLocation,
+        company: savedOffer.company ?? "",
+        role: savedOffer.title ?? "",
+        location: savedOffer.officeLocation ?? "",
         compensation:
-          savedOffer.compensationType === "hourly"
-            ? `$${savedOffer.payAmount}/hr`
-            : `$${savedOffer.payAmount.toLocaleString()}/mo`,
+          savedOffer.payAmount == null
+            ? ""
+            : savedOffer.compensationType === "hourly"
+              ? `$${savedOffer.payAmount}/hr`
+              : `$${savedOffer.payAmount.toLocaleString()}/mo`,
       },
     ]);
   }
@@ -363,6 +403,56 @@ export function CompareOffers() {
     router.push("/offers/submit?from=compare");
   }
 
+  function editableToOfferRequest(o: EditableOffer): OfferRequest {
+    const raw = o.compensation.trim();
+    const lower = raw.toLowerCase();
+    const num = parseMoney(raw);
+    const extras = {
+      netTakeHome: o.netTakeHome,
+      allExpenses: o.allExpenses,
+      commute: o.commute,
+      paycheckConfigId: o.paycheckConfigId,
+      paycheckLabel: o.paycheckLabel,
+      plannerDocId: o.plannerDocId,
+      plannerLabel: o.plannerLabel,
+    };
+    const notesJson = JSON.stringify(extras);
+    const base = {
+      company: o.company.trim(),
+      title: o.role.trim(),
+      officeLocation: o.location.trim() || undefined,
+      employmentType: "internship" as const,
+    };
+    if (num > 0 && lower.includes("/hr")) {
+      return {
+        ...base,
+        compensationType: "hourly",
+        payAmount: num,
+        notes: notesJson,
+      };
+    }
+    if (num > 0 && (lower.includes("/yr") || lower.includes("/year"))) {
+      return {
+        ...base,
+        compensationType: "monthly",
+        payAmount: num / 12,
+        notes: notesJson,
+      };
+    }
+    if (num > 0) {
+      return {
+        ...base,
+        compensationType: "monthly",
+        payAmount: num,
+        notes: notesJson,
+      };
+    }
+    return {
+      ...base,
+      notes: raw ? `${raw}\n${notesJson}` : notesJson,
+    };
+  }
+
   async function handleSave() {
     if (!token) return;
     const validOffers = offers.filter((o) => o.company.trim());
@@ -376,9 +466,14 @@ export function CompareOffers() {
     setSaveSuccess(false);
 
     try {
+      const includedOfferIds: number[] = [];
+      for (const o of validOffers) {
+        const created = await createOffer(token, editableToOfferRequest(o));
+        includedOfferIds.push(created.id);
+      }
       await createComparison(token, {
         name: validOffers.map((o) => o.company.trim()).join(" vs "),
-        includedOfferIds: [],
+        includedOfferIds,
         computedMetrics: JSON.stringify(
           validOffers.map((o, i) => ({
             company: o.company,
@@ -430,7 +525,6 @@ export function CompareOffers() {
         overlayClassName="items-start pt-32"
       >
       <div className="mx-auto max-w-5xl space-y-10 p-4 md:p-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight">Compare Offers</h1>
@@ -465,7 +559,6 @@ export function CompareOffers() {
           </p>
         )}
 
-        {/* Import saved offers */}
         {isAuthenticated && savedOffers.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -483,7 +576,23 @@ export function CompareOffers() {
           </div>
         )}
 
-        {/* Offer Cards */}
+        {!isLocked && urlHydration === "loading" && needsUrlHydration && (
+          <div
+            className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-muted/30 py-16"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading saved comparison"
+          >
+            <Spinner className="size-10" />
+            <p className="text-muted-foreground text-sm">Loading saved comparison…</p>
+          </div>
+        )}
+
+        <div
+          className={
+            !isLocked && urlHydration === "loading" && needsUrlHydration ? "hidden" : ""
+          }
+        >
         <div className={`grid grid-cols-1 gap-6 ${offerGridClass}`}>
           {offers.map((offer, i) => (
             <Card key={offer.uid} className="relative shadow-none">
@@ -499,7 +608,12 @@ export function CompareOffers() {
                 <div className="space-y-2">
                   <Input placeholder="Company" value={offer.company} onChange={(e) => updateOffer(offer.uid, "company", e.target.value)} className="font-bold" />
                   <Input placeholder="Role" value={offer.role} onChange={(e) => updateOffer(offer.uid, "role", e.target.value)} className="text-sm" />
-                  <LocationPicker value={offer.location} onChange={(loc) => updateOffer(offer.uid, "location", loc)} placeholder="Search city…" />
+                  <LocationPicker
+                    value={offer.location}
+                    onChange={(loc) => updateOffer(offer.uid, "location", loc)}
+                    placeholder="Search city, region…"
+                    containerClassName="w-full min-w-0"
+                  />
                 </div>
 
                 {hasConfigOptions && (
@@ -551,7 +665,6 @@ export function CompareOffers() {
           ))}
         </div>
 
-        {/* Financial Performance */}
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Financial Performance</h2>
           <Card className="shadow-none">
@@ -587,7 +700,6 @@ export function CompareOffers() {
           </Card>
         </div>
 
-        {/* Lifestyle & Logistics */}
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Lifestyle &amp; Logistics</h2>
           <Card className="shadow-none">
@@ -623,7 +735,6 @@ export function CompareOffers() {
           </Card>
         </div>
 
-        {/* Monthly Leftover — live-computed */}
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Monthly Leftover</h2>
           <div className={`grid grid-cols-1 gap-6 ${offerGridClass}`}>
@@ -655,6 +766,7 @@ export function CompareOffers() {
               );
             })}
           </div>
+        </div>
         </div>
       </div>
       </LockedPaycheckSection>

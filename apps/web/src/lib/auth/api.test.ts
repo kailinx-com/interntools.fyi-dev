@@ -5,75 +5,8 @@ import {
   logoutUser,
   registerUser,
   updateProfile,
-} from "@/lib/auth/api";
-
-jest.mock("@/lib/auth/http", () => ({
-  apiRequest: jest.fn(),
-}));
-
-describe("auth api wrappers", () => {
-  const mockedApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockedApiRequest.mockResolvedValue({} as never);
-  });
-
-  it("calls register endpoint", async () => {
-    const payload = {
-      username: "user",
-      firstName: "First",
-      lastName: "Last",
-      email: "user@example.com",
-      password: "password123",
-      role: "STUDENT" as const,
-    };
-    await registerUser(payload);
-    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/register", {
-      method: "POST",
-      body: payload,
-    });
-  });
-
-  it("calls login endpoint", async () => {
-    const payload = { identifier: "user@example.com", password: "password123" };
-    await loginUser(payload);
-    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/login", {
-      method: "POST",
-      body: payload,
-    });
-  });
-
-  it("calls current user endpoint with token", async () => {
-    await getCurrentUser("tok");
-    expect(mockedApiRequest).toHaveBeenCalledWith("/me", {
-      method: "GET",
-      token: "tok",
-    });
-  });
-
-  it("calls logout endpoint with token", async () => {
-    await logoutUser("tok");
-    expect(mockedApiRequest).toHaveBeenCalledWith("/auth/logout", {
-      method: "POST",
-      token: "tok",
-    });
-  });
-
-  it("calls update profile endpoint with payload", async () => {
-    const payload = { username: "new-name", currentPassword: "current", newPassword: "next" };
-    await updateProfile("tok", payload);
-    expect(mockedApiRequest).toHaveBeenCalledWith("/me", {
-      method: "PATCH",
-      token: "tok",
-      body: payload,
-    });
-  });
-});
-import { apiRequest } from "@/lib/auth/http";
-import { getCurrentUser, loginUser, logoutUser, registerUser } from "./api";
-// Plain imports (no `import type`) so a Jest runner using Babel without TS
-// `import type` support can still parse this file.
+} from "./api";
+// Avoid `import type` so Jest+Babel configs without type-stripping can parse this file.
 import {
   AuthUser,
   LoginRequest,
@@ -87,40 +20,13 @@ jest.mock("@/lib/auth/http", () => ({
 
 const mockedApiRequest = apiRequest as jest.MockedFunction<typeof apiRequest>;
 
-describe("auth api client", () => {
+describe("auth api", () => {
   beforeEach(() => {
-    mockedApiRequest.mockReset();
+    jest.clearAllMocks();
   });
 
   describe("registerUser", () => {
     it("posts the register payload to the register endpoint", async () => {
-      const payload: RegisterRequest = {
-        username: "newuser",
-        email: "newuser@example.com",
-        role: "STUDENT",
-        firstName: "New",
-        lastName: "User",
-        password: "super-secret",
-      };
-      const user: AuthUser = {
-        id: BigInt(1),
-        username: "newuser",
-        email: "newuser@example.com",
-        role: "STUDENT",
-      };
-
-      mockedApiRequest.mockResolvedValue(user);
-
-      await expect(registerUser(payload)).resolves.toBe(user);
-
-      expect(mockedApiRequest).toHaveBeenCalledTimes(1);
-      expect(mockedApiRequest).toHaveBeenCalledWith("/auth/register", {
-        method: "POST",
-        body: payload,
-      });
-    });
-
-    it("posts the register payload to the register endpoint twice", async () => {
       const payload: RegisterRequest = {
         username: "newuser",
         email: "newuser@example.com",
@@ -166,7 +72,7 @@ describe("auth api client", () => {
   });
 
   describe("loginUser", () => {
-    it("posts login credentials to the login endpoint", async () => {
+    it("posts login credentials with email identifier", async () => {
       const payload: LoginRequest = {
         identifier: "student@example.com",
         password: "super-secret",
@@ -186,6 +92,31 @@ describe("auth api client", () => {
       await expect(loginUser(payload)).resolves.toBe(response);
 
       expect(mockedApiRequest).toHaveBeenCalledTimes(1);
+      expect(mockedApiRequest).toHaveBeenCalledWith("/auth/login", {
+        method: "POST",
+        body: payload,
+      });
+    });
+
+    it("posts login credentials with username identifier", async () => {
+      const payload: LoginRequest = {
+        identifier: "student",
+        password: "super-secret",
+      };
+      const response: LoginResponse = {
+        token: "jwt-token",
+        user: {
+          id: BigInt(5),
+          username: "student",
+          email: "student@example.com",
+          role: "STUDENT",
+        },
+      };
+
+      mockedApiRequest.mockResolvedValue(response);
+
+      await expect(loginUser(payload)).resolves.toBe(response);
+
       expect(mockedApiRequest).toHaveBeenCalledWith("/auth/login", {
         method: "POST",
         body: payload,
@@ -261,6 +192,25 @@ describe("auth api client", () => {
       await expect(logoutUser("expired-token")).rejects.toThrow(
         "Session expired",
       );
+    });
+  });
+
+  describe("updateProfile", () => {
+    it("posts update payload to /me", async () => {
+      const payload = {
+        username: "new-name",
+        currentPassword: "current",
+        newPassword: "next",
+      };
+      mockedApiRequest.mockResolvedValue({} as AuthUser);
+
+      await updateProfile("tok", payload);
+
+      expect(mockedApiRequest).toHaveBeenCalledWith("/me", {
+        method: "PATCH",
+        token: "tok",
+        body: payload,
+      });
     });
   });
 });

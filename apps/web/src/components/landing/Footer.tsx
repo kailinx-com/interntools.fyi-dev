@@ -1,5 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo } from "react";
 import { Briefcase, Facebook, Heart, Mail } from "lucide-react";
+
+import { useAuth } from "@/components/auth/AuthProvider";
+import { ADMIN_DASHBOARD_PATH, isAdminRole } from "@/lib/auth/roleUi";
 import { cn } from "@/lib/utils";
 
 export interface FooterLinkGroup {
@@ -69,9 +75,26 @@ export function Footer({
   ),
   className,
 }: FooterProps) {
+  const { user, isAuthenticated } = useAuth();
   const year = new Date().getFullYear();
   const copyrightLine =
     copyright ?? `Copyright ${year} interntools.fyi. All rights reserved.`;
+
+  const resolvedLinkGroups = useMemo(() => {
+    const base = linkGroups;
+    if (!isAuthenticated || !isAdminRole(user?.role)) return base;
+    return base.map((group) => {
+      if (group.title !== "Legal") return group;
+      if (group.links.some((l) => l.href === ADMIN_DASHBOARD_PATH)) return group;
+      return {
+        ...group,
+        links: [
+          ...group.links,
+          { label: "Admin console", href: ADMIN_DASHBOARD_PATH },
+        ],
+      };
+    });
+  }, [linkGroups, isAuthenticated, user?.role]);
 
   return (
     <footer
@@ -107,7 +130,7 @@ export function Footer({
               })}
             </div>
           </div>
-          {linkGroups.map((group) => (
+          {resolvedLinkGroups.map((group) => (
             <div key={group.title}>
               <h4 className="font-semibold text-foreground mb-4">
                 {group.title}

@@ -24,6 +24,12 @@ public class ComparisonController {
     return comparisonService.listComparisons(auth);
   }
 
+  @GetMapping("/by-office-location")
+  public List<ComparisonResponse> listComparisonsByOfficeLocation(
+      @RequestParam(name = "tokens") List<String> tokens) {
+    return comparisonService.listPublishedComparisonsByOfficeLocationTokens(tokens);
+  }
+
   @PostMapping(consumes = "application/json")
   @ResponseStatus(HttpStatus.CREATED)
   public ComparisonResponse createComparison(

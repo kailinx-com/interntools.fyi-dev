@@ -115,6 +115,23 @@ class BookmarkServiceTest {
   }
 
   @Test
+  @DisplayName("listBookmarks omits rows when the post is no longer published (e.g. soft-deleted)")
+  void listBookmarksOmitsNonPublishedPosts() {
+    User author = createUser("author", 2L);
+    User current = createUser("alice", 1L);
+    Post hiddenPost = createPublishedPost(author, 10L);
+    hiddenPost.setStatus(PostStatus.hidden);
+    SavedPost saved = new SavedPost();
+    saved.setPost(hiddenPost);
+    saved.setUser(current);
+    Authentication auth = auth("alice");
+    when(userRepository.findByUsername("alice")).thenReturn(Optional.of(current));
+    when(savedPostRepository.findByUserOrderByCreatedAtDesc(current)).thenReturn(List.of(saved));
+
+    assertThat(bookmarkService.listBookmarks(auth)).isEmpty();
+  }
+
+  @Test
   @DisplayName("listBookmarks returns bookmarked summaries")
   void listBookmarksReturnsBookmarkedSummaries() {
     User author = createUser("author", 2L);

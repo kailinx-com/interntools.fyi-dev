@@ -21,16 +21,30 @@ export async function apiRequest<T>(
 
   const contentType = response.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");
-  const data = isJson ? await response.json() : null;
+  const text = await response.text();
 
   if (!response.ok) {
-    const message =
-      data && typeof data === "object" && "message" in data
-        ? String(data.message)
-        : "Something went wrong";
-
+    let message = "Something went wrong";
+    if (text && isJson) {
+      try {
+        const data = JSON.parse(text) as unknown;
+        if (data && typeof data === "object" && "message" in data) {
+          message = String((data as { message: unknown }).message);
+        }
+      } catch {
+        // ignore malformed error bodies
+      }
+    }
     throw new Error(message);
   }
 
-  return data as T;
+  if (response.status === 204 || response.status === 205 || text.length === 0) {
+    return undefined as T;
+  }
+
+  if (isJson) {
+    return JSON.parse(text) as T;
+  }
+
+  return undefined as T;
 }

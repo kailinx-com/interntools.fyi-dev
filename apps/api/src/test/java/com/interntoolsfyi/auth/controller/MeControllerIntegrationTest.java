@@ -2,6 +2,7 @@ package com.interntoolsfyi.auth.controller;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -42,6 +43,38 @@ class MeControllerIntegrationTest {
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     mockMvc =
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
+  }
+
+  @Test
+  @DisplayName("PATCH /me to change username then GET /me with same token returns new username")
+  void patchMeUsernameThenGetMeWithSameTokenReturnsUpdatedUsername() throws Exception {
+    registerUser("renameuser", "rename@example.com", "password123");
+    String token = loginAndExtractToken("renameuser", "password123");
+
+    String patchBody =
+        """
+        {
+          "username": "renameuser2",
+          "currentPassword": "password123"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            patch("/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(patchBody)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username").value("renameuser2"));
+
+    mockMvc
+        .perform(get("/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.username").value("renameuser2"))
+        .andExpect(jsonPath("$.email").value("rename@example.com"))
+        .andExpect(jsonPath("$.role").value(Role.STUDENT.name()));
   }
 
   @Test
@@ -89,8 +122,8 @@ class MeControllerIntegrationTest {
   }
 
   @Test
-  @DisplayName("GET /me returns a handled error when the token is valid but the user no longer exists")
-  void meReturnsAHandledErrorWhenTheTokenIsValidButTheUserNoLongerExists() throws Exception {
+  @DisplayName("GET /me returns unauthorized when the token is valid but the user no longer exists")
+  void meReturnsUnauthorizedWhenTheTokenIsValidButTheUserNoLongerExists() throws Exception {
     registerUser("deleteduser", "deleted@example.com", "password123");
     String token = loginAndExtractToken("deleteduser", "password123");
     jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
@@ -99,9 +132,7 @@ class MeControllerIntegrationTest {
 
     mockMvc
         .perform(get("/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-        .andExpect(status().isBadRequest())
-        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("$.message").value("User not found"));
+        .andExpect(status().isUnauthorized());
   }
 
   private void registerUser(String username, String email, String password) throws Exception {

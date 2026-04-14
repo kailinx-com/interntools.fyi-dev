@@ -4,6 +4,8 @@ export { HeroSection } from "./HeroSection";
 export type { HeroSectionProps, HeroCta } from "./HeroSection";
 export { StatsBar } from "./StatsBar";
 export type { StatsBarProps, StatItem } from "./StatsBar";
+export { HomeStatsBar } from "./HomeStatsBar";
+export { HomeLandingSections } from "./HomeLandingSections";
 export { CommunityNoteCard } from "./CommunityNoteCard";
 export type { CommunityNoteCardProps } from "./CommunityNoteCard";
 export { TrendingCitiesWidget } from "./TrendingCitiesWidget";

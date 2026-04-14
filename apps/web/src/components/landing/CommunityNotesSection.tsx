@@ -63,16 +63,12 @@ function relativeTime(dateStr: string | null | undefined): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-function excerptFromSnapshots(snapshotsJson: string | null | undefined): string {
-  if (!snapshotsJson) return "";
-  try {
-    const parsed = JSON.parse(snapshotsJson) as { company?: string }[];
-    if (!Array.isArray(parsed)) return "";
-    const companies = parsed.map((s) => s.company).filter(Boolean).join(" vs ");
-    return companies ? `Comparing ${companies}` : "";
-  } catch {
-    return "";
-  }
+function excerptFromOffers(
+  offers: { company?: string | null }[] | null | undefined,
+): string {
+  if (!offers?.length) return "";
+  const companies = offers.map((o) => o.company).filter(Boolean).join(" vs ");
+  return companies ? `Comparing ${companies}` : "";
 }
 
 function NoteCardSkeleton() {
@@ -102,7 +98,7 @@ export function CommunityNotesSection({
   const [isLoading, setIsLoading] = useState(!notes);
 
   useEffect(() => {
-    if (notes) return; // caller provided static notes — skip fetch
+    if (notes) return;
     let cancelled = false;
 
     async function load() {
@@ -120,7 +116,7 @@ export function CommunityNotesSection({
         const mapped: CommunityNoteCardProps[] = result.content.map((post, i) => {
           const detail = detailed[i];
           const bodyExcerpt = detail?.body ? detail.body.slice(0, 120) + (detail.body.length > 120 ? "…" : "") : "";
-          const snapshotExcerpt = excerptFromSnapshots(detail?.offerSnapshots);
+          const snapshotExcerpt = excerptFromOffers(detail?.offers);
           return {
             tag: post.type === "comparison" ? "Comparison" : "Acceptance",
             tagVariant: post.type === "comparison" ? "salary" : "advice",

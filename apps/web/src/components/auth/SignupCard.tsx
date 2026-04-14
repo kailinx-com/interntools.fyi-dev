@@ -174,6 +174,7 @@ export function SignupCard(props: React.ComponentProps<typeof Card>) {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="At least 8 characters"
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -189,6 +190,7 @@ export function SignupCard(props: React.ComponentProps<typeof Card>) {
                 <Input
                   id="confirm-password"
                   type="password"
+                  placeholder="Re-enter password"
                   required
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}

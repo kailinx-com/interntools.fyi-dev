@@ -5,12 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.interntoolsfyi.offer.repository.CommentRepository;
 import com.interntoolsfyi.offer.repository.CommunityPreferenceVoteRepository;
+import com.interntoolsfyi.offer.repository.OfferRepository;
 import com.interntoolsfyi.offer.repository.PostRepository;
 import com.interntoolsfyi.offer.repository.SavedPostRepository;
+import com.interntoolsfyi.offer.testsupport.PostFixtures;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
-import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class OfferModelLifecycleTest {
   @Autowired private UserRepository userRepository;
+  @Autowired private OfferRepository offerRepository;
   @Autowired private PostRepository postRepository;
   @Autowired private CommentRepository commentRepository;
   @Autowired private CommunityPreferenceVoteRepository voteRepository;
@@ -53,13 +55,9 @@ class OfferModelLifecycleTest {
     User author = userRepository.saveAndFlush(createUser("author2-lifecycle", "author2-lifecycle@test.dev"));
     User viewer = userRepository.saveAndFlush(createUser("viewer-lifecycle", "viewer-lifecycle@test.dev"));
 
-    Post post = new Post();
-    post.setAuthor(author);
+    Post post =
+        PostFixtures.savePublishedPost(author, "Comparison", offerRepository, postRepository);
     post.setType(PostType.comparison);
-    post.setTitle("Comparison");
-    post.setVisibility(PostVisibility.public_post);
-    post.setStatus(PostStatus.published);
-    post.setPublishedAt(Instant.now());
     post = postRepository.saveAndFlush(post);
 
     Comment comment = new Comment();
@@ -87,14 +85,8 @@ class OfferModelLifecycleTest {
   @DisplayName("enforces required field constraints for comment body")
   void commentBodyIsRequired() {
     User author = userRepository.saveAndFlush(createUser("author3-lifecycle", "author3-lifecycle@test.dev"));
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setType(PostType.acceptance);
-    post.setTitle("Constraint post");
-    post.setVisibility(PostVisibility.public_post);
-    post.setStatus(PostStatus.published);
-    post.setPublishedAt(Instant.now());
-    post = postRepository.saveAndFlush(post);
+    Post post =
+        PostFixtures.savePublishedPost(author, "Constraint post", offerRepository, postRepository);
 
     Comment invalid = new Comment();
     invalid.setPost(post);

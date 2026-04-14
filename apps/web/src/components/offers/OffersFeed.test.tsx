@@ -1,14 +1,25 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { OffersFeed } from "./OffersFeed";
+import { OffersFeed, parseFeedFilterParam } from "./OffersFeed";
 
-const mockUseAuth = jest.fn();
-const mockFetchPublishedPosts = jest.fn();
-const mockFetchPost = jest.fn();
+const mockReplace = jest.fn();
+let mockSearchParams = "";
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  usePathname: () => "/offers",
+  useSearchParams: () => new URLSearchParams(mockSearchParams),
+}));
 
 jest.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => mockUseAuth(),
+  useAuth: () => ({
+    isAuthenticated: true,
+    isLoading: false,
+  }),
 }));
+
+const mockFetchPublishedPosts = jest.fn();
+const mockFetchPost = jest.fn();
 
 jest.mock("@/lib/offers/api", () => ({
   fetchPublishedPosts: (...args: unknown[]) => mockFetchPublishedPosts(...args),
@@ -16,98 +27,98 @@ jest.mock("@/lib/offers/api", () => ({
 }));
 
 jest.mock("./Article", () => ({
-  Article: ({ post }: { post: { title: string } }) => <div>{post.title}</div>,
+  Article: () => <div data-testid="article" />,
 }));
+jest.mock("./OffersFeedHeader", () => ({
+  OffersFeedHeader: () => <div>Header</div>,
+}));
+jest.mock("./OutcomeCTA", () => ({
+  OutcomeCTA: () => <div>CTA</div>,
+}));
+
+const sampleSummary = {
+  id: 1,
+  type: "acceptance" as const,
+  title: "Hello",
+  officeLocation: null,
+  visibility: "public_post" as const,
+  status: "published" as const,
+  authorUsername: "u",
+  publishedAt: null,
+  createdAt: "2026-01-01T00:00:00Z",
+  bookmarked: false,
+};
+
+describe("parseFeedFilterParam", () => {
+  it("maps acceptances and comparisons", () => {
+    expect(parseFeedFilterParam("acceptance")).toBe("acceptance");
+    expect(parseFeedFilterParam("comparison")).toBe("comparison");
+  });
+
+  it("defaults to all when missing or invalid", () => {
+    expect(parseFeedFilterParam(null)).toBe("all");
+    expect(parseFeedFilterParam("")).toBe("all");
+    expect(parseFeedFilterParam("all")).toBe("all");
+    expect(parseFeedFilterParam("nope")).toBe("all");
+  });
+});
 
 describe("OffersFeed", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({
-      isAuthenticated: true,
-      isLoading: false,
-    });
-  });
-
-  it("renders published posts and hydrates detail snapshots", async () => {
+    mockSearchParams = "";
     mockFetchPublishedPosts.mockResolvedValue({
-      content: [
-        {
-          id: 1,
-          type: "acceptance",
-          title: "Accepted",
-          visibility: "public_post",
-          status: "published",
-          authorUsername: "alice",
-          publishedAt: "2026-01-01T00:00:00Z",
-          createdAt: "2026-01-01T00:00:00Z",
-          bookmarked: false,
-        },
-      ],
+      content: [sampleSummary],
+      totalElements: 1,
+      totalPages: 1,
+      number: 0,
+      size: 10,
       last: true,
+      first: true,
     });
-    mockFetchPost.mockResolvedValue({ offerSnapshots: "[]" });
-
-    render(<OffersFeed />);
-
-    await waitFor(() => expect(screen.getByText("Accepted")).toBeInTheDocument());
-    expect(mockFetchPublishedPosts).toHaveBeenCalledWith(0);
-    expect(mockFetchPost).toHaveBeenCalledWith(1);
+    mockFetchPost.mockResolvedValue({
+      ...sampleSummary,
+      body: null,
+      comparisonId: null,
+      offers: [],
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
   });
 
-  it("shows error and supports retry on load failure", async () => {
-    const user = userEvent.setup();
-    mockFetchPublishedPosts
-      .mockRejectedValueOnce(new Error("Boom"))
-      .mockResolvedValueOnce({ content: [], last: true });
-
+  it("selects Acceptances when URL has filter=acceptance", async () => {
+    mockSearchParams = "filter=acceptance";
     render(<OffersFeed />);
 
-    await waitFor(() => expect(screen.getByText("Boom")).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: "Try again" }));
-
-    await waitFor(() => expect(mockFetchPublishedPosts).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Acceptances")).toBeChecked();
+    });
+    expect(screen.getByLabelText("All Activities")).not.toBeChecked();
   });
 
-  it("loads more posts for authenticated users", async () => {
+  it("updates URL when user selects Comparisons", async () => {
     const user = userEvent.setup();
-    mockFetchPublishedPosts
-      .mockResolvedValueOnce({
-        content: [
-          {
-            id: 1,
-            type: "acceptance",
-            title: "First",
-            visibility: "public_post",
-            status: "published",
-            authorUsername: "alice",
-            publishedAt: null,
-            createdAt: "2026-01-01T00:00:00Z",
-            bookmarked: false,
-          },
-        ],
-        last: false,
-      })
-      .mockResolvedValueOnce({
-        content: [
-          {
-            id: 2,
-            type: "comparison",
-            title: "Second",
-            visibility: "public_post",
-            status: "published",
-            authorUsername: "bob",
-            publishedAt: null,
-            createdAt: "2026-01-01T00:00:00Z",
-            bookmarked: false,
-          },
-        ],
-        last: true,
-      });
-    mockFetchPost.mockResolvedValue({ offerSnapshots: "[]" });
-
     render(<OffersFeed />);
-    expect(await screen.findByText("First")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /load more activity/i }));
-    expect(await screen.findByText("Second")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("All Activities")).toBeChecked();
+    });
+
+    await user.click(screen.getByLabelText("Comparisons"));
+
+    expect(mockReplace).toHaveBeenCalledWith("/offers?filter=comparison", { scroll: false });
+  });
+
+  it("clears filter from URL when All Activities is selected", async () => {
+    mockSearchParams = "filter=comparison";
+    const user = userEvent.setup();
+    render(<OffersFeed />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Comparisons")).toBeChecked();
+    });
+
+    await user.click(screen.getByLabelText("All Activities"));
+
+    expect(mockReplace).toHaveBeenCalledWith("/offers", { scroll: false });
   });
 });

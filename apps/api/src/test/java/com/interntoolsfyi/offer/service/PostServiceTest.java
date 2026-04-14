@@ -4,24 +4,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.interntoolsfyi.offer.dto.OfferResponse;
 import com.interntoolsfyi.offer.dto.PostDetailResponse;
+import com.interntoolsfyi.offer.dto.PostOfferItemRequest;
 import com.interntoolsfyi.offer.dto.PostRequest;
 import com.interntoolsfyi.offer.dto.PostSummaryResponse;
+import com.interntoolsfyi.offer.model.Comparison;
+import com.interntoolsfyi.offer.model.Offer;
 import com.interntoolsfyi.offer.model.Post;
 import com.interntoolsfyi.offer.model.PostStatus;
 import com.interntoolsfyi.offer.model.PostType;
 import com.interntoolsfyi.offer.model.PostVisibility;
+import com.interntoolsfyi.offer.repository.ComparisonRepository;
+import com.interntoolsfyi.offer.repository.OfferRepository;
 import com.interntoolsfyi.offer.repository.PostRepository;
 import com.interntoolsfyi.offer.repository.SavedPostRepository;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,8 +55,52 @@ class PostServiceTest {
   @Mock private PostRepository postRepository;
   @Mock private SavedPostRepository savedPostRepository;
   @Mock private UserRepository userRepository;
+  @Mock private OfferRepository offerRepository;
+  @Mock private ComparisonRepository comparisonRepository;
+  @Mock private OfferService offerService;
+  @Mock private EntityManager entityManager;
 
   @InjectMocks private PostService postService;
+
+  @BeforeEach
+  void stubOfferCollaborators() {
+    ReflectionTestUtils.setField(postService, "entityManager", entityManager);
+    lenient().doNothing().when(entityManager).flush();
+    lenient()
+        .when(offerRepository.save(org.mockito.ArgumentMatchers.any(Offer.class)))
+        .thenAnswer(
+            inv -> {
+              Offer o = inv.getArgument(0);
+              if (ReflectionTestUtils.getField(o, "id") == null) {
+                ReflectionTestUtils.setField(o, "id", 100L);
+              }
+              return o;
+            });
+    lenient()
+        .when(offerService.toOfferResponse(org.mockito.ArgumentMatchers.any(Offer.class)))
+        .thenAnswer(
+            inv -> {
+              Offer o = inv.getArgument(0);
+              Long id = o.getId() != null ? o.getId() : 1L;
+              return new OfferResponse(
+                  id,
+                  o.getCompany(),
+                  o.getTitle(),
+                  o.getEmploymentType(),
+                  o.getCompensationType(),
+                  o.getPayAmount(),
+                  o.getHoursPerWeek(),
+                  o.getSignOnBonus(),
+                  o.getRelocationAmount(),
+                  o.getEquityNotes(),
+                  o.getOfficeLocation(),
+                  o.getDaysInOffice(),
+                  o.getNotes(),
+                  o.getFavorite(),
+                  o.getCreatedAt() != null ? o.getCreatedAt() : Instant.now(),
+                  o.getUpdatedAt() != null ? o.getUpdatedAt() : Instant.now());
+            });
+  }
 
   @Nested
   @DisplayName("listPublishedPosts")
@@ -171,8 +226,8 @@ class PostServiceTest {
     }
 
     @Test
-    @DisplayName("returns all statuses of posts belonging to the authenticated user")
-    void returnsAllStatusesOfPostsBelongingToTheAuthenticatedUser() {
+    @DisplayName("returns draft and published posts but excludes soft-deleted (hidden) posts")
+    void returnsDraftAndPublishedButExcludesSoftDeletedHiddenPosts() {
       User user = createUser("author", 1L);
       Authentication auth = authenticatedUser(user.getUsername());
       Post published =
@@ -182,10 +237,13 @@ class PostServiceTest {
       Post draft =
           createPost(
               user, 2L, "Draft", PostType.comparison, PostStatus.draft, PostVisibility.private_post);
+      Post hidden =
+          createPost(
+              user, 3L, "Deleted", PostType.acceptance, PostStatus.hidden, PostVisibility.public_post);
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(postRepository.findByAuthorOrderByCreatedAtDesc(user))
-          .thenReturn(List.of(published, draft));
+          .thenReturn(List.of(published, draft, hidden));
 
       List<PostSummaryResponse> result = postService.listMyPosts(auth);
 
@@ -445,10 +503,11 @@ class PostServiceTest {
               PostType.acceptance,
               "Accepted offer",
               "Body",
+              null,
               PostVisibility.public_post,
               PostStatus.published,
               null,
-              null);
+              sampleInlineOffers());
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
@@ -477,10 +536,11 @@ class PostServiceTest {
               PostType.comparison,
               "Draft post",
               null,
+              null,
               PostVisibility.private_post,
               PostStatus.draft,
               null,
-              null);
+              twoInlineOffers());
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
@@ -505,7 +565,8 @@ class PostServiceTest {
       User user = createUser("author", 1L);
       Authentication auth = authenticatedUser(user.getUsername());
       PostRequest request =
-          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
+          new PostRequest(
+              PostType.acceptance, "Title", null, null, null, PostStatus.draft, null, sampleInlineOffers());
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
@@ -528,7 +589,8 @@ class PostServiceTest {
     void returnsUnauthorizedWhenAuthExistsButUserRecordIsMissing() {
       Authentication auth = authenticatedUser("missing-user");
       PostRequest request =
-          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
+          new PostRequest(
+              PostType.acceptance, "Title", null, null, null, PostStatus.draft, null, sampleInlineOffers());
       when(userRepository.findByUsername("missing-user")).thenReturn(Optional.empty());
 
       assertThatThrownBy(() -> postService.createPost(auth, request))
@@ -543,12 +605,133 @@ class PostServiceTest {
       Authentication auth = org.mockito.Mockito.mock(Authentication.class);
       when(auth.isAuthenticated()).thenReturn(false);
       PostRequest request =
-          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.draft, null, null);
+          new PostRequest(
+              PostType.acceptance, "Title", null, null, null, PostStatus.draft, null, sampleInlineOffers());
 
       assertThatThrownBy(() -> postService.createPost(auth, request))
           .isInstanceOfSatisfying(
               ResponseStatusException.class,
               ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("clears officeLocation for comparison posts even when request sends a value")
+    void clearsOfficeLocationForComparisonPostsEvenWhenRequestSendsAValue() {
+      User user = createUser("author", 1L);
+      Authentication auth = authenticatedUser(user.getUsername());
+      PostRequest request =
+          new PostRequest(
+              PostType.comparison,
+              "Compare",
+              "Body",
+              "Seattle, WA",
+              PostVisibility.public_post,
+              PostStatus.draft,
+              null,
+              twoInlineOffers());
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
+      when(postRepository.save(any(Post.class)))
+          .thenAnswer(
+              inv -> {
+                Post saved = inv.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 42L);
+                ReflectionTestUtils.setField(saved, "createdAt", Instant.now());
+                return saved;
+              });
+
+      PostDetailResponse response = postService.createPost(auth, request);
+
+      assertThat(response.officeLocation()).isNull();
+
+      ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+      verify(postRepository).save(captor.capture());
+      assertThat(captor.getValue().getOfficeLocation()).isNull();
+    }
+
+    @Test
+    @DisplayName("links offers from comparisonId in order and does not use inline offers")
+    void linksOffersFromComparisonIdInOrderAndDoesNotUseInlineOffers() {
+      User user = createUser("author", 1L);
+      Authentication auth = authenticatedUser(user.getUsername());
+
+      Comparison comparison = new Comparison();
+      comparison.setId(99L);
+      comparison.setIncludedOfferIds(List.of(10L, 20L));
+
+      Offer o1 = new Offer();
+      o1.setUser(user);
+      o1.setCompany("FirstCo");
+      ReflectionTestUtils.setField(o1, "id", 10L);
+      Offer o2 = new Offer();
+      o2.setUser(user);
+      o2.setCompany("SecondCo");
+      ReflectionTestUtils.setField(o2, "id", 20L);
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(user))).thenReturn(false);
+      when(comparisonRepository.findByIdAndUser(99L, user)).thenReturn(Optional.of(comparison));
+      when(offerRepository.findByIdAndUser(10L, user)).thenReturn(Optional.of(o1));
+      when(offerRepository.findByIdAndUser(20L, user)).thenReturn(Optional.of(o2));
+      when(postRepository.save(any(Post.class)))
+          .thenAnswer(
+              inv -> {
+                Post saved = inv.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", 7L);
+                ReflectionTestUtils.setField(saved, "createdAt", Instant.now());
+                return saved;
+              });
+
+      PostRequest request =
+          new PostRequest(
+              PostType.comparison,
+              "From saved comparison",
+              null,
+              "ignored",
+              null,
+              PostStatus.draft,
+              99L,
+              null);
+
+      PostDetailResponse response = postService.createPost(auth, request);
+
+      assertThat(response.comparisonId()).isEqualTo(99L);
+      assertThat(response.offers()).hasSize(2);
+      assertThat(response.offers().get(0).company()).isEqualTo("FirstCo");
+      assertThat(response.offers().get(1).company()).isEqualTo("SecondCo");
+
+      verify(offerRepository, never()).save(any(Offer.class));
+      ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+      verify(postRepository).save(captor.capture());
+      assertThat(captor.getValue().getComparison()).isEqualTo(comparison);
+      assertThat(captor.getValue().getIncludedOffers()).hasSize(2);
+      assertThat(captor.getValue().getIncludedOffers().get(0).getSortOrder()).isZero();
+      assertThat(captor.getValue().getIncludedOffers().get(1).getSortOrder()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("returns bad request when inline offer has empty company")
+    void returnsBadRequestWhenInlineOfferHasEmptyCompany() {
+      User user = createUser("author", 1L);
+      Authentication auth = authenticatedUser(user.getUsername());
+      PostRequest request =
+          new PostRequest(
+              PostType.acceptance,
+              "Title",
+              null,
+              null,
+              null,
+              PostStatus.draft,
+              null,
+              List.of(new PostOfferItemRequest(null, "   ", "Role", null)));
+
+      when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
+
+      assertThatThrownBy(() -> postService.createPost(auth, request))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
     }
   }
 
@@ -570,10 +753,11 @@ class PostServiceTest {
               PostType.acceptance,
               "Now published",
               "Body",
+              null,
               PostVisibility.public_post,
               PostStatus.published,
               null,
-              null);
+              sampleInlineOffers());
 
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
@@ -602,10 +786,11 @@ class PostServiceTest {
               PostType.acceptance,
               "Back to draft",
               "Body",
+              null,
               PostVisibility.private_post,
               PostStatus.draft,
               null,
-              null);
+              sampleInlineOffers());
 
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
@@ -634,10 +819,11 @@ class PostServiceTest {
               PostType.acceptance,
               "Still published",
               "Updated body",
+              null,
               PostVisibility.public_post,
               PostStatus.published,
               null,
-              null);
+              sampleInlineOffers());
 
       when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
       when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
@@ -650,12 +836,48 @@ class PostServiceTest {
     }
 
     @Test
+    @DisplayName("clears officeLocation when updating a post to comparison type")
+    void clearsOfficeLocationWhenUpdatingAPostToComparisonType() {
+      User author = createUser("author", 1L);
+      Authentication auth = authenticatedUser(author.getUsername());
+      Post post =
+          createPost(
+              author, 5L, "Was acceptance", PostType.acceptance, PostStatus.draft,
+              PostVisibility.public_post);
+      post.setOfficeLocation("Portland");
+      PostRequest request =
+          new PostRequest(
+              PostType.comparison,
+              "Now comparison",
+              "Body",
+              "Should be ignored",
+              PostVisibility.public_post,
+              PostStatus.draft,
+              null,
+              twoInlineOffers());
+
+      when(userRepository.findByUsername(author.getUsername())).thenReturn(Optional.of(author));
+      when(savedPostRepository.existsByPostAndUser(any(Post.class), eq(author))).thenReturn(false);
+      when(postRepository.findByIdAndAuthor(5L, author)).thenReturn(Optional.of(post));
+      when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      PostDetailResponse response = postService.updatePost(auth, 5L, request);
+
+      assertThat(response.officeLocation()).isNull();
+      assertThat(response.type()).isEqualTo(PostType.comparison);
+      ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+      verify(postRepository).save(captor.capture());
+      assertThat(captor.getValue().getOfficeLocation()).isNull();
+    }
+
+    @Test
     @DisplayName("returns not found when updating a post not authored by the current user")
     void returnsNotFoundWhenUpdatingAPostNotAuthoredByTheCurrentUser() {
       User user = createUser("other", 2L);
       Authentication auth = authenticatedUser(user.getUsername());
       PostRequest request =
-          new PostRequest(PostType.acceptance, "Title", null, null, PostStatus.published, null, null);
+          new PostRequest(
+              PostType.acceptance, "Title", null, null, null, PostStatus.published, null, sampleInlineOffers());
 
       when(userRepository.findByUsername(user.getUsername())).thenReturn(Optional.of(user));
       when(postRepository.findByIdAndAuthor(99L, user)).thenReturn(Optional.empty());
@@ -688,6 +910,7 @@ class PostServiceTest {
       postService.deletePost(auth, 8L);
 
       assertThat(post.getStatus()).isEqualTo(PostStatus.hidden);
+      verify(savedPostRepository).deleteAllByPost(post);
       verify(postRepository).save(post);
     }
 
@@ -738,5 +961,15 @@ class PostServiceTest {
     ReflectionTestUtils.setField(post, "id", id);
     ReflectionTestUtils.setField(post, "createdAt", Instant.parse("2026-01-01T00:00:00Z"));
     return post;
+  }
+
+  private static List<PostOfferItemRequest> sampleInlineOffers() {
+    return List.of(new PostOfferItemRequest(null, "Acme", "Engineer", "$8500/mo"));
+  }
+
+  private static List<PostOfferItemRequest> twoInlineOffers() {
+    return List.of(
+        new PostOfferItemRequest(null, "A", "R1", "$1/mo"),
+        new PostOfferItemRequest(null, "B", "R2", "$2/mo"));
   }
 }

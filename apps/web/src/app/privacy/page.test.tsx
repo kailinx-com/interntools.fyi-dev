@@ -14,4 +14,14 @@ describe("/privacy page", () => {
     expect(screen.getByRole("heading", { name: /privacy policy/i })).toBeInTheDocument();
     expect(screen.getByText(/do not sell personal data/i)).toBeInTheDocument();
   });
+
+  it("exposes #cookies anchor for footer Cookie Settings link", () => {
+    const { container } = render(<PrivacyPage />);
+    const cookiesSection = container.querySelector("#cookies");
+    expect(cookiesSection).not.toBeNull();
+    expect(cookiesSection).toHaveAttribute("id", "cookies");
+    expect(
+      screen.getByRole("heading", { name: /cookie settings/i }),
+    ).toBeInTheDocument();
+  });
 });

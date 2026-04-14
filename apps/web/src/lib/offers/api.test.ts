@@ -26,6 +26,8 @@ import {
   bookmarkPost,
   unbookmarkPost,
   fetchBookmarkedPosts,
+  fetchRelatedPostsByLocationTokens,
+  resolvePlacePostLinks,
 } from "./api";
 
 jest.mock("@/lib/auth/http", () => ({
@@ -298,6 +300,40 @@ describe("offers api client", () => {
       await fetchBookmarkedPosts("tok");
       expect(mockedApiRequest).toHaveBeenCalledWith("/posts/bookmarks", {
         token: "tok",
+      });
+    });
+  });
+
+  describe("fetchRelatedPostsByLocationTokens", () => {
+    it("builds repeated tokens query and requests related-location", async () => {
+      mockedApiRequest.mockResolvedValue([]);
+      await fetchRelatedPostsByLocationTokens(["CA", "California"]);
+      expect(mockedApiRequest).toHaveBeenCalledWith(
+        "/posts/related-location?tokens=CA&tokens=California",
+      );
+    });
+
+    it("returns empty array when no tokens", async () => {
+      await expect(fetchRelatedPostsByLocationTokens([])).resolves.toEqual([]);
+      expect(mockedApiRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("resolvePlacePostLinks", () => {
+    it("POSTs resolve-place-links with offer and comparison ids", async () => {
+      mockedApiRequest.mockResolvedValue({
+        postsByOfferId: { "9": 100 },
+        postsByComparisonId: { "3": 200 },
+      });
+      await expect(
+        resolvePlacePostLinks({ offerIds: [9], comparisonIds: [3] }),
+      ).resolves.toEqual({
+        postsByOfferId: { "9": 100 },
+        postsByComparisonId: { "3": 200 },
+      });
+      expect(mockedApiRequest).toHaveBeenCalledWith("/posts/resolve-place-links", {
+        method: "POST",
+        body: { offerIds: [9], comparisonIds: [3] },
       });
     });
   });

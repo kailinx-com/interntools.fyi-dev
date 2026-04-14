@@ -62,22 +62,21 @@ describe("paycheck utilities", () => {
         { l: 10000, u: 20000, r: 0.2 },
       ];
 
-      // 10% of first 10k + 20% of next 10k = 1000 + 2000
       expect(calculateTax(20000, brackets)).toBe(3000);
     });
   });
 
   describe("getBusinessDays", () => {
     it("counts weekdays inclusively", () => {
-      expect(getBusinessDays("2026-05-04", "2026-05-08")).toBe(5); // Mon-Fri
+      expect(getBusinessDays("2026-05-04", "2026-05-08")).toBe(5);
     });
 
     it("skips weekends", () => {
-      expect(getBusinessDays("2026-05-09", "2026-05-10")).toBe(0); // Sat-Sun
+      expect(getBusinessDays("2026-05-09", "2026-05-10")).toBe(0);
     });
 
     it("handles ranges that cross a weekend", () => {
-      expect(getBusinessDays("2026-05-08", "2026-05-11")).toBe(2); // Fri + Mon
+      expect(getBusinessDays("2026-05-08", "2026-05-11")).toBe(2);
     });
   });
 
@@ -99,7 +98,7 @@ describe("paycheck utilities", () => {
 
       const result = calculatePayroll(config);
 
-      expect(result.summary.totalGross).toBe(500); // wages (400) + stipend (100)
+      expect(result.summary.totalGross).toBe(500);
       expect(result.summary.totalFed).toBe(0);
       expect(result.summary.totalState).toBe(0);
       expect(result.summary.totalFica).toBe(0);
@@ -145,7 +144,6 @@ describe("paycheck utilities", () => {
       expect(result.summary.totalDeductions).toBeCloseTo(152.22, 6);
       expect(result.summary.netTotal).toBeCloseTo(667.78, 6);
 
-      // Single-day range fits in exactly one row per period grouping.
       expect(result.weekly[0].netPay).toBeCloseTo(result.summary.netTotal, 6);
       expect(result.biweekly[0].netPay).toBeCloseTo(result.summary.netTotal, 6);
       expect(result.monthly[0].netPay).toBeCloseTo(result.summary.netTotal, 6);

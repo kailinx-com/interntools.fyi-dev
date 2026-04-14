@@ -35,6 +35,7 @@ class ComparisonServiceTest {
 
   @Mock private ComparisonRepository comparisonRepository;
   @Mock private UserRepository userRepository;
+  @Mock private OfferService offerService;
 
   @InjectMocks private ComparisonService comparisonService;
 

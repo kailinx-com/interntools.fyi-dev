@@ -94,7 +94,7 @@ jest.mock("@/components/ui/button", () => {
       children: React.ReactNode;
     }) => {
       if (asChild && React.isValidElement(children)) {
-        // `cloneElement` + `ref` types can break when multiple @types/react copies are resolved; props here have no ref.
+        // Duplicate @types/react: omit ref on cloned child props.
         return React.cloneElement(children, props);
       }
 
@@ -166,7 +166,7 @@ jest.mock("@/components/ui/navigation-menu", () => {
 });
 
 type MockAuthState = {
-  user: { username: string } | null;
+  user: { username: string; role?: string } | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   logout: jest.Mock<Promise<void>, []>;
@@ -279,6 +279,68 @@ describe("Navbar", () => {
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
   });
 
+  it("shows My Profile link in authenticated dropdown", () => {
+    mockUseAuth.mockReturnValue(
+      createAuthState({
+        user: { username: "kailinx", role: "STUDENT" },
+        isAuthenticated: true,
+      }),
+    );
+
+    renderNavbar();
+
+    expect(screen.getByRole("link", { name: /my profile/i })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
+  });
+
+  it("shows Student role badge for student accounts", () => {
+    mockUseAuth.mockReturnValue(
+      createAuthState({
+        user: { username: "student1", role: "STUDENT" },
+        isAuthenticated: true,
+      }),
+    );
+
+    renderNavbar();
+
+    expect(screen.getByText("Student")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /admin dashboard/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows top-level Admin dashboard link for admins on md+ viewports", () => {
+    mockUseAuth.mockReturnValue(
+      createAuthState({
+        user: { username: "root", role: "ADMIN" },
+        isAuthenticated: true,
+      }),
+    );
+
+    renderNavbar();
+
+    expect(screen.getByRole("link", { name: /admin dashboard/i })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
+  });
+
+  it("shows Admin link in dropdown when user role is ADMIN", () => {
+    mockUseAuth.mockReturnValue(
+      createAuthState({
+        user: { username: "root", role: "ADMIN" },
+        isAuthenticated: true,
+      }),
+    );
+
+    renderNavbar();
+
+    expect(screen.getByRole("link", { name: /^admin$/i })).toHaveAttribute("href", "/admin");
+    expect(screen.getAllByRole("link", { name: /admin/i }).filter((el) => el.getAttribute("href") === "/admin")).toHaveLength(2);
+  });
+
   it("shows the authenticated user and logs out before redirecting home", async () => {
     const user = userEvent.setup();
     const logout = jest.fn().mockResolvedValue(undefined);
@@ -324,5 +386,146 @@ describe("Navbar", () => {
     expect(
       screen.getByRole("link", { name: /create account/i }),
     ).toHaveAttribute("href", "/auth/register");
+  });
+
+  describe("role-based hiding of admin-only links (/admin)", () => {
+    it.each([
+      {
+        label: "guest",
+        auth: createAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        }),
+      },
+      {
+        label: "STUDENT",
+        auth: createAuthState({
+          user: { username: "stu", role: "STUDENT" },
+          isAuthenticated: true,
+        }),
+      },
+    ])("exposes no /admin navigation links for $label", ({ auth }) => {
+      mockUseAuth.mockReturnValue(auth);
+      renderNavbar();
+      expect(
+        screen.queryAllByRole("link").filter((el) => el.getAttribute("href") === "/admin"),
+      ).toHaveLength(0);
+    });
+
+    it("exposes /admin links for ADMIN (top nav + account menu)", () => {
+      mockUseAuth.mockReturnValue(
+        createAuthState({
+          user: { username: "root", role: "ADMIN" },
+          isAuthenticated: true,
+        }),
+      );
+      renderNavbar();
+      expect(
+        screen.queryAllByRole("link").filter((el) => el.getAttribute("href") === "/admin"),
+      ).toHaveLength(2);
+    });
+  });
+
+  describe("navigation adapts to login state and role", () => {
+    it.each([
+      {
+        scenario: "guest: Log in / Sign up, no account menu or admin nav",
+        auth: createAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        }),
+        expectLogin: true,
+        expectSignUp: true,
+        expectPulse: false,
+        expectHi: false,
+        expectStudentBadge: false,
+        expectAdminTop: false,
+      },
+      {
+        scenario: "loading: skeleton, no public or authenticated auth controls",
+        auth: createAuthState({ isLoading: true }),
+        expectLogin: false,
+        expectSignUp: false,
+        expectPulse: true,
+        expectHi: false,
+        expectStudentBadge: false,
+        expectAdminTop: false,
+      },
+      {
+        scenario: "student: account menu, Student badge, no admin surfaces",
+        auth: createAuthState({
+          user: { username: "stu", role: "STUDENT" },
+          isAuthenticated: true,
+        }),
+        expectLogin: false,
+        expectSignUp: false,
+        expectPulse: false,
+        expectHi: true,
+        expectStudentBadge: true,
+        expectAdminTop: false,
+      },
+      {
+        scenario: "admin: account menu, top Admin link, no Student badge",
+        auth: createAuthState({
+          user: { username: "root", role: "ADMIN" },
+          isAuthenticated: true,
+        }),
+        expectLogin: false,
+        expectSignUp: false,
+        expectPulse: false,
+        expectHi: true,
+        expectStudentBadge: false,
+        expectAdminTop: true,
+      },
+    ])("$scenario", ({
+      auth,
+      expectLogin,
+      expectSignUp,
+      expectPulse,
+      expectHi,
+      expectStudentBadge,
+      expectAdminTop,
+    }) => {
+      mockUseAuth.mockReturnValue(auth);
+      const { container } = renderNavbar();
+
+      if (expectLogin) {
+        expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute("href", "/login");
+      } else {
+        expect(screen.queryByRole("link", { name: /log in/i })).not.toBeInTheDocument();
+      }
+      if (expectSignUp) {
+        expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute("href", "/signup");
+      } else {
+        expect(screen.queryByRole("link", { name: /sign up/i })).not.toBeInTheDocument();
+      }
+      if (expectPulse) {
+        expect(container.querySelector(".animate-pulse")).toBeTruthy();
+      } else {
+        expect(container.querySelector(".animate-pulse")).toBeNull();
+      }
+      if (expectHi) {
+        expect(screen.getByRole("button", { name: /hi, (stu|root)/i })).toBeInTheDocument();
+      } else {
+        expect(screen.queryByRole("button", { name: /^hi,/i })).not.toBeInTheDocument();
+      }
+      if (expectStudentBadge) {
+        expect(screen.getByText("Student")).toBeInTheDocument();
+      } else {
+        expect(screen.queryByText("Student")).not.toBeInTheDocument();
+      }
+      if (expectAdminTop) {
+        expect(screen.getByRole("link", { name: /admin dashboard/i })).toHaveAttribute(
+          "href",
+          "/admin",
+        );
+      } else {
+        expect(
+          screen.queryByRole("link", { name: /admin dashboard/i }),
+        ).not.toBeInTheDocument();
+      }
+    });
   });
 });

@@ -21,10 +21,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
-/**
- * Direct unit tests for {@link MeController} (avoids standalone {@link org.springframework.test.web.servlet.MockMvc}
- * argument resolution ordering issues with {@link Authentication}).
- */
 @ExtendWith(MockitoExtension.class)
 class MeControllerTest {
 
@@ -63,7 +59,7 @@ class MeControllerTest {
     when(authentication.isAuthenticated()).thenReturn(true);
     when(authentication.getName()).thenReturn("alice");
     when(authService.getCurrentUser("alice"))
-        .thenReturn(new AuthResponse(1L, "alice", "a@example.com", Role.STUDENT));
+        .thenReturn(new AuthResponse(1L, "alice", "a@example.com", Role.STUDENT, "Alice", "Student"));
 
     ResponseEntity<AuthResponse> response = controller.me(authentication);
 
@@ -81,7 +77,7 @@ class MeControllerTest {
 
     ResponseEntity<AuthResponse> response =
         controller.updateProfile(
-            authentication, new UpdateProfileRequest(null, "e@example.com", "current", null));
+            authentication, new UpdateProfileRequest(null, "e@example.com", "current", null, null, null));
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     verify(authService, never()).updateProfile(any(), any());
   }
@@ -90,7 +86,7 @@ class MeControllerTest {
   @DisplayName("PATCH /me returns 401 when authentication is null")
   void patchMeUnauthorizedWhenAuthenticationIsNull() {
     ResponseEntity<AuthResponse> response =
-        controller.updateProfile(null, new UpdateProfileRequest(null, null, null, null));
+        controller.updateProfile(null, new UpdateProfileRequest(null, null, null, null, null, null));
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     verify(authService, never()).updateProfile(any(), any());
   }
@@ -101,9 +97,9 @@ class MeControllerTest {
     Authentication authentication = mock(Authentication.class);
     when(authentication.isAuthenticated()).thenReturn(true);
     when(authentication.getName()).thenReturn("alice");
-    UpdateProfileRequest body = new UpdateProfileRequest(null, "new@example.com", "current", null);
+    UpdateProfileRequest body = new UpdateProfileRequest(null, "new@example.com", "current", null, null, null);
     when(authService.updateProfile("alice", body))
-        .thenReturn(new AuthResponse(1L, "alice", "new@example.com", Role.STUDENT));
+        .thenReturn(new AuthResponse(1L, "alice", "new@example.com", Role.STUDENT, "Alice", "Student"));
 
     ResponseEntity<AuthResponse> response = controller.updateProfile(authentication, body);
 

@@ -24,6 +24,12 @@ public class OfferController {
     return offerService.listOffers(auth);
   }
 
+  @GetMapping("/by-office-location")
+  public List<OfferResponse> listOffersByOfficeLocation(
+      @RequestParam(name = "tokens") List<String> tokens) {
+    return offerService.listOffersByOfficeLocationTokens(tokens);
+  }
+
   @PostMapping(consumes = "application/json")
   @ResponseStatus(HttpStatus.CREATED)
   public OfferResponse createOffer(

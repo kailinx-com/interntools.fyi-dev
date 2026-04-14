@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Briefcase, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { Briefcase, LayoutDashboard, LogOut, Settings, Shield, User } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { ADMIN_DASHBOARD_PATH, isAdminRole } from "@/lib/auth/roleUi";
 import { cn } from "@/lib/utils";
 
 export interface NavLink {
@@ -44,6 +46,7 @@ export interface NavbarProps {
 const defaultLinks: NavLink[] = [
   { label: "Home", href: "/" },
   { label: "Offers", href: "/offers" },
+  { label: "Search", href: "/search" },
   { label: "Paycheck Calculator", href: "/calculator" },
 ];
 
@@ -111,7 +114,6 @@ export function Navbar({
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <Link
             href={logoHref}
             className="shrink-0 flex items-center space-x-2 cursor-pointer group"
@@ -241,6 +243,23 @@ export function Navbar({
                 </Link>
               );
             })}
+            {isAuthenticated && isAdminRole(user?.role) ? (
+              <Link
+                href={ADMIN_DASHBOARD_PATH}
+                aria-label="Admin dashboard"
+                aria-current={pathname.startsWith(ADMIN_DASHBOARD_PATH) ? "page" : undefined}
+                className={cn(
+                  navigationMenuTriggerStyle(),
+                  "bg-transparent shrink-0 hidden md:inline-flex items-center gap-1.5",
+                  pathname.startsWith(ADMIN_DASHBOARD_PATH)
+                    ? "text-primary"
+                    : "text-muted-foreground",
+                )}
+              >
+                <Shield className="size-4 shrink-0" aria-hidden />
+                Admin
+              </Link>
+            ) : null}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -249,8 +268,26 @@ export function Navbar({
             ) : isAuthenticated && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={cn(navigationMenuTriggerStyle(), "bg-transparent font-medium")}>
-                    Hi, {user.username}
+                  <button
+                    type="button"
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      "bg-transparent font-medium max-w-[min(100vw-12rem,14rem)]",
+                    )}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="truncate">
+                        Hi, {user.username}
+                      </span>
+                      {user.role === "STUDENT" ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] font-normal px-1.5 py-0 shrink-0"
+                        >
+                          Student
+                        </Badge>
+                      ) : null}
+                    </span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
@@ -258,6 +295,20 @@ export function Navbar({
                     <Link href="/me" className="flex items-center gap-2">
                       <LayoutDashboard className="size-4 text-muted-foreground shrink-0" />
                       My Account
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdminRole(user.role) ? (
+                    <DropdownMenuItem asChild>
+                      <Link href={ADMIN_DASHBOARD_PATH} className="flex items-center gap-2">
+                        <Shield className="size-4 text-muted-foreground shrink-0" />
+                        Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center gap-2">
+                      <User className="size-4 text-muted-foreground shrink-0" />
+                      My Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

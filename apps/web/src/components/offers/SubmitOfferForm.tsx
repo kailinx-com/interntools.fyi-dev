@@ -19,7 +19,9 @@ import {
   clearCompareOffersDraft,
   type CompareOffersDraftEntry,
 } from "@/lib/offers";
-import { createPost } from "@/lib/offers/api";
+import { createPost, fetchOffer, type PostOfferItemRequest } from "@/lib/offers/api";
+import { offerToPostSubmitPrefill } from "@/lib/offers/offerPostPrefill";
+import { LocationPicker } from "@/components/offers/LocationPicker";
 
 const POST_TYPES = ["Acceptance", "Rejection", "Comparison"] as const;
 type PostTypeOption = (typeof POST_TYPES)[number];
@@ -40,8 +42,13 @@ export function SubmitOfferForm() {
   const searchParams = useSearchParams();
   const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const fromCompare = searchParams.get("from") === "compare";
+  const offerIdParam = searchParams.get("offerId");
+  const parsedSavedOfferId = offerIdParam ? Number.parseInt(offerIdParam, 10) : Number.NaN;
+  const shouldHydrateFromSavedOffer =
+    Number.isFinite(parsedSavedOfferId) && parsedSavedOfferId > 0;
 
   const [title, setTitle] = useState("");
+  const [officeLocation, setOfficeLocation] = useState("");
   const [postType, setPostType] = useState<PostTypeOption>(() =>
     fromCompare ? "Comparison" : "Acceptance",
   );
@@ -62,6 +69,12 @@ export function SubmitOfferForm() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savedOfferHydration, setSavedOfferHydration] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >(() => (shouldHydrateFromSavedOffer ? "loading" : "idle"));
+  const [prefilledFromSavedOffer, setPrefilledFromSavedOffer] = useState(false);
+  const [savedOfferLoadError, setSavedOfferLoadError] = useState(false);
+  const [linkedOfferId, setLinkedOfferId] = useState<number | null>(null);
   const [compareDraft] = useState<CompareOffersDraftEntry[] | null>(() => {
     if (!fromCompare) return null;
     const draft = getCompareOffersDraft();
@@ -74,9 +87,47 @@ export function SubmitOfferForm() {
 
   useEffect(() => {
     if (!isAuthLoading && !isAuthenticated) {
-      router.replace("/login?redirect=/offers/submit");
+      const q = searchParams.toString();
+      router.replace(
+        `/login?redirect=${encodeURIComponent(q ? `/offers/submit?${q}` : "/offers/submit")}`,
+      );
     }
-  }, [isAuthLoading, isAuthenticated, router]);
+  }, [isAuthLoading, isAuthenticated, router, searchParams]);
+
+  useEffect(() => {
+    if (!shouldHydrateFromSavedOffer || !token) return;
+    let cancelled = false;
+    setSavedOfferHydration("loading");
+    fetchOffer(token, parsedSavedOfferId)
+      .then((offer) => {
+        if (cancelled) return;
+        setSavedOfferLoadError(false);
+        const p = offerToPostSubmitPrefill(offer);
+        setTitle(p.title);
+        setOfficeLocation(p.officeLocation);
+        setPostType("Acceptance");
+        setCompanies([...emptyCompanyPair]);
+        setSingleCompany(p.singleCompany);
+        setSingleRole(p.singleRole);
+        setCompensation(p.compensation);
+        setNotes(p.notes);
+        setLinkedOfferId(offer.id);
+        setPrefilledFromSavedOffer(true);
+        setSavedOfferHydration("ready");
+        router.replace("/offers/submit", { scroll: false });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSavedOfferHydration("error");
+          setSavedOfferLoadError(true);
+          setLinkedOfferId(null);
+          router.replace("/offers/submit", { scroll: false });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldHydrateFromSavedOffer, token, parsedSavedOfferId, router]);
 
   function addCompany() {
     setCompanies((prev) => [
@@ -96,7 +147,13 @@ export function SubmitOfferForm() {
     );
   }
 
-  function buildPayload(): { type: "acceptance" | "comparison"; title: string; body: string | null; offerSnapshots: string } | null {
+  function buildPayload(): {
+    type: "acceptance" | "comparison";
+    title: string;
+    body: string | null;
+    officeLocation: string | null;
+    offers: PostOfferItemRequest[];
+  } | null {
     if (!title.trim()) {
       setSubmitError("Title is required.");
       return null;
@@ -112,14 +169,12 @@ export function SubmitOfferForm() {
         type: postTypeToApi(postType),
         title: title.trim(),
         body: notes.trim() || null,
-        offerSnapshots: JSON.stringify(
-          validOffers.map((r, i) => ({
-            label: `Option ${String.fromCharCode(65 + i)}`,
-            company: r.company.trim(),
-            role: r.role.trim(),
-            compensation: r.compensation.trim(),
-          })),
-        ),
+        officeLocation: null,
+        offers: validOffers.map((r) => ({
+          company: r.company.trim(),
+          role: r.role.trim(),
+          compensationText: r.compensation.trim(),
+        })),
       };
     } else {
       if (!singleCompany.trim()) {
@@ -130,14 +185,15 @@ export function SubmitOfferForm() {
         type: postTypeToApi(postType),
         title: title.trim(),
         body: notes.trim() || null,
-        offerSnapshots: JSON.stringify([
+        officeLocation: officeLocation.trim() || null,
+        offers: [
           {
-            label: postType, // "Acceptance" or "Rejection"
+            ...(linkedOfferId != null ? { offerId: linkedOfferId } : {}),
             company: singleCompany.trim(),
             role: singleRole.trim(),
-            compensation: compensation.trim(),
+            compensationText: compensation.trim(),
           },
-        ]),
+        ],
       };
     }
   }
@@ -185,6 +241,14 @@ export function SubmitOfferForm() {
     );
   }
 
+  if (shouldHydrateFromSavedOffer && savedOfferHydration === "loading") {
+    return (
+      <div className="flex justify-center py-24">
+        <Spinner className="size-8" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background text-foreground min-h-screen">
       <div className="mx-auto max-w-2xl space-y-5 p-4 md:p-6">
@@ -195,7 +259,34 @@ export function SubmitOfferForm() {
           </p>
         </div>
 
-        {/* Comparison preview from Compare Offers */}
+        {savedOfferLoadError && (
+          <p className="text-destructive text-sm" role="alert">
+            Could not load that saved offer. You can still fill the form manually.
+          </p>
+        )}
+
+        {prefilledFromSavedOffer && (
+          <Card className="shadow-none border-primary/20">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Prefilled from saved offer
+                </p>
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] uppercase tracking-widest"
+                >
+                  Saved offer
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Title, location, company, role, compensation, and notes were filled from your
+                saved offer. Edit anything before publishing.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {fromCompare && compareDraft && (
           <Card className="shadow-none border-primary/20">
             <CardContent className="p-4 space-y-3">
@@ -229,7 +320,6 @@ export function SubmitOfferForm() {
         <Card className="shadow-none">
           <CardContent className="p-5">
             <form className="space-y-5" noValidate onSubmit={(e) => void handleSubmit(e)}>
-              {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -241,7 +331,29 @@ export function SubmitOfferForm() {
                 />
               </div>
 
-              {/* Type selector — hidden when from compare */}
+              {postType !== "Comparison" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="office-location">Location (optional)</Label>
+                  <LocationPicker
+                    inputId="office-location"
+                    inputTestId="office-location-input"
+                    value={officeLocation}
+                    onChange={setOfficeLocation}
+                    placeholder="Search city, region, or place…"
+                    containerClassName="w-full"
+                    className="h-10 w-full text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Shown on your post; separate from each offer&apos;s office field.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground rounded-md border border-dashed px-3 py-2 bg-muted/40">
+                  Location search uses each compared offer&apos;s office field (set in Compare Offers), not a
+                  separate post location.
+                </p>
+              )}
+
               {!fromCompare && (
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -267,7 +379,6 @@ export function SubmitOfferForm() {
                 </div>
               )}
 
-              {/* Acceptance / Rejection — simple form */}
               {(postType === "Acceptance" || postType === "Rejection") && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
@@ -302,7 +413,6 @@ export function SubmitOfferForm() {
                 </>
               )}
 
-              {/* Comparison — multi-company rows */}
               {postType === "Comparison" && (
                 <>
                   {!fromCompare && (
@@ -387,7 +497,6 @@ export function SubmitOfferForm() {
                 </>
               )}
 
-              {/* Notes */}
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (optional)</Label>
                 <Textarea

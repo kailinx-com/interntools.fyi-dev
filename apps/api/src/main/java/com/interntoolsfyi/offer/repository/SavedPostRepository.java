@@ -12,4 +12,6 @@ public interface SavedPostRepository extends JpaRepository<SavedPost, Long> {
   boolean existsByPostAndUser(Post post, User user);
   List<SavedPost> findByUserOrderByCreatedAtDesc(User user);
   void deleteByPostAndUser(Post post, User user);
+
+  void deleteAllByPost(Post post);
 }

@@ -94,6 +94,19 @@ test.describe("critical journeys", () => {
     await logoutFromNavbar(page, username);
   });
 
+  test("signup then login with email identifier succeeds", async ({ page }) => {
+    const suffix = uniqueSuffix();
+    const username = `e2e_email_${suffix}`;
+    const email = `e2e_email_${suffix}@example.com`;
+    const password = "password123";
+
+    await registerAccount(page, { username, email, password });
+    await login(page, { identifier: email, password });
+    await expect(page.getByRole("button", { name: new RegExp(`Hi, ${username}`) })).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
   test("create post -> view post -> bookmark and unbookmark", async ({ page }) => {
     const suffix = uniqueSuffix();
     const username = `e2e_post_${suffix}`;
@@ -147,6 +160,77 @@ test.describe("critical journeys", () => {
     await page.getByRole("button", { name: /publish/i }).click();
     await expect(page).toHaveURL(/\/offers\/submit\?from=compare$/, { timeout: 20_000 });
     await expect(page.getByText(/comparison preview/i)).toBeVisible();
+  });
+
+  test("saved comparison: /me → open comparison → compare hydrates columns", async ({ page }) => {
+    const suffix = uniqueSuffix();
+    const username = `e2e_cmp_me_${suffix}`;
+    const email = `e2e_cmp_me_${suffix}@example.com`;
+    const password = "password123";
+
+    await registerAccount(page, { username, email, password });
+    await login(page, { identifier: username, password });
+
+    await page.goto("/offers/compare");
+    await expect(page.getByRole("heading", { name: /compare offers/i })).toBeVisible();
+
+    const companyInputs = page.getByPlaceholder("Company");
+    await companyInputs.nth(0).fill("Hydrate Co A");
+    await companyInputs.nth(1).fill("Hydrate Co B");
+
+    await page.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/comparison saved to your account/i)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await page.goto("/me");
+    await expect(page.getByRole("heading", { name: /my account/i })).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("link", { name: /open comparison/i }).click();
+    await expect(page).toHaveURL(/\/offers\/compare\?comparison=\d+/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /compare offers/i })).toBeVisible();
+
+    const loadingRegion = page.getByRole("status", { name: /loading saved comparison/i });
+    await expect(loadingRegion).toBeHidden({ timeout: 30_000 });
+
+    await expect(page.getByPlaceholder("Company").nth(0)).toHaveValue("Hydrate Co A", {
+      timeout: 20_000,
+    });
+    await expect(page.getByPlaceholder("Company").nth(1)).toHaveValue("Hydrate Co B");
+  });
+
+  test("saved offer: detail → post an update → submit prefilled from saved offer", async ({
+    page,
+  }) => {
+    const suffix = uniqueSuffix();
+    const username = `e2e_saved_offer_${suffix}`;
+    const email = `e2e_saved_offer_${suffix}@example.com`;
+    const password = "password123";
+
+    await registerAccount(page, { username, email, password });
+    await login(page, { identifier: username, password });
+
+    await page.goto("/offers/submit");
+    await expect(page).toHaveURL(/\/offers\/submit$/);
+    await page.getByLabel(/title/i).fill(`Prefill check ${suffix}`);
+    await page.getByLabel(/^Company$/i).fill("Prefill Corp");
+    await page.getByLabel(/^Role$/i).fill("Intern");
+    await page.getByLabel(/^Compensation$/i).fill("$7,500/mo");
+    await page.getByRole("button", { name: /^publish$/i }).click();
+
+    await expect(page).toHaveURL(/\/offers\/\d+$/, { timeout: 30_000 });
+
+    await page.goto("/me");
+    await expect(page.getByRole("heading", { name: /my account/i })).toBeVisible({ timeout: 20_000 });
+    await page.getByTitle("View saved offer").first().click();
+
+    await expect(page).toHaveURL(/\/offers\/saved\/\d+/, { timeout: 15_000 });
+    await expect(page.getByText("Prefill Corp — Intern")).toBeVisible({ timeout: 15_000 });
+
+    await page.locator('a[href^="/offers/submit?offerId="]').click();
+
+    await expect(page.getByText(/prefilled from saved offer/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByLabel(/^Company$/i)).toHaveValue("Prefill Corp", { timeout: 15_000 });
   });
 
   test("/me profile: validation for password change without current password", async ({ page }) => {

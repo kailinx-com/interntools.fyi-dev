@@ -1,10 +1,13 @@
 package com.interntoolsfyi.user.repository;
 
+import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+  long countByRole(Role role);
   Optional<User> findByUsername(String username);
 
   Optional<User> findByEmail(String email);

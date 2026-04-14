@@ -47,6 +47,31 @@ class AuthControllerTest {
   }
 
   @Test
+  @DisplayName("POST /auth/register ignores role=ADMIN in body and creates STUDENT")
+  void registerIgnoresAdminRoleInBody() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "username": "adminhacker",
+                      "email": "adminhacker@example.com",
+                      "password": "password123",
+                      "role": "ADMIN",
+                      "firstName": "Test",
+                      "lastName": "User"
+                    }
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.role").value(Role.STUDENT.name()));
+
+    assertThat(userRepository.findByUsername("adminhacker").orElseThrow().getRole())
+        .isEqualTo(Role.STUDENT);
+  }
+
+  @Test
   @DisplayName("POST /auth/register creates a user and returns the auth payload")
   void registerCreatesUserAndReturnsAuthPayload() throws Exception {
     mockMvc

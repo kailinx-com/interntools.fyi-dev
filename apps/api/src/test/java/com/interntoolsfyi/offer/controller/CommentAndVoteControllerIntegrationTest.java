@@ -16,17 +16,16 @@ import com.interntoolsfyi.offer.model.Comment;
 import com.interntoolsfyi.offer.model.CommunityPreferenceVote;
 import com.interntoolsfyi.offer.model.Post;
 import com.interntoolsfyi.offer.model.PostStatus;
-import com.interntoolsfyi.offer.model.PostType;
 import com.interntoolsfyi.offer.model.PostVisibility;
 import com.interntoolsfyi.offer.repository.CommentRepository;
 import com.interntoolsfyi.offer.repository.ComparisonRepository;
 import com.interntoolsfyi.offer.repository.CommunityPreferenceVoteRepository;
 import com.interntoolsfyi.offer.repository.OfferRepository;
 import com.interntoolsfyi.offer.repository.PostRepository;
+import com.interntoolsfyi.offer.testsupport.PostFixtures;
 import com.interntoolsfyi.user.model.Role;
 import com.interntoolsfyi.user.model.User;
 import com.interntoolsfyi.user.repository.UserRepository;
-import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -585,24 +584,11 @@ class CommentAndVoteControllerIntegrationTest {
   }
 
   private Post createPublishedPost(User author, String title) {
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setTitle(title);
-    post.setType(PostType.acceptance);
-    post.setStatus(PostStatus.published);
-    post.setVisibility(PostVisibility.public_post);
-    post.setPublishedAt(Instant.now());
-    return postRepository.saveAndFlush(post);
+    return PostFixtures.savePublishedPost(author, title, offerRepository, postRepository);
   }
 
   private Post createPost(User author, String title, PostStatus status, PostVisibility visibility) {
-    Post post = new Post();
-    post.setAuthor(author);
-    post.setTitle(title);
-    post.setType(PostType.acceptance);
-    post.setStatus(status);
-    post.setVisibility(visibility);
-    return postRepository.saveAndFlush(post);
+    return PostFixtures.savePost(author, title, status, visibility, offerRepository, postRepository);
   }
 
   private Comment createComment(Post post, User user, String body) {

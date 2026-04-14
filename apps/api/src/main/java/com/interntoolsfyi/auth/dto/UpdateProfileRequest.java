@@ -4,4 +4,6 @@ public record UpdateProfileRequest(
     String username,
     String email,
     String currentPassword,
-    String newPassword) {}
+    String newPassword,
+    String firstName,
+    String lastName) {}

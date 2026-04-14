@@ -10,4 +10,6 @@ public interface ComparisonRepository extends JpaRepository<Comparison, Long> {
   List<Comparison> findByUserOrderByCreatedAtDesc(User user);
 
   Optional<Comparison> findByIdAndUser(Long id, User user);
+
+  List<Comparison> findByIsPublishedTrue();
 }

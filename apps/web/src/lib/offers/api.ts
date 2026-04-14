@@ -2,10 +2,8 @@
 
 import { apiRequest } from "@/lib/auth/http";
 
-/** Matches JSON from `com.interntoolsfyi.offer.model.EmploymentType` */
 export type EmploymentType = "internship" | "coop" | "full_time";
 
-/** Matches JSON from `com.interntoolsfyi.offer.model.CompensationType` */
 export type CompensationType = "hourly" | "monthly";
 
 export type PostType = "acceptance" | "comparison";
@@ -14,19 +12,18 @@ export type PostVisibility = "public_post" | "unlisted" | "private_post";
 
 export type PostStatus = "draft" | "published" | "hidden";
 
-/** Matches backend `OfferResponse` */
 export type Offer = {
   id: number;
   company: string;
   title: string;
-  employmentType: EmploymentType;
-  compensationType: CompensationType;
-  payAmount: number;
+  employmentType: EmploymentType | null;
+  compensationType: CompensationType | null;
+  payAmount: number | null;
   hoursPerWeek: number | null;
   signOnBonus: number | null;
   relocationAmount: number | null;
   equityNotes: string | null;
-  officeLocation: string;
+  officeLocation: string | null;
   daysInOffice: number | null;
   notes: string | null;
   favorite: boolean | null;
@@ -50,7 +47,6 @@ export type OfferRequest = {
   favorite?: boolean | null;
 };
 
-/** Matches backend `ComparisonResponse` */
 export type Comparison = {
   id: number;
   name: string;
@@ -69,11 +65,11 @@ export type ComparisonRequest = {
   computedMetrics?: string | null;
 };
 
-/** Matches backend `PostSummaryResponse` */
 export type PostSummary = {
   id: number;
   type: PostType;
   title: string;
+  officeLocation: string | null;
   visibility: PostVisibility;
   status: PostStatus;
   authorUsername: string;
@@ -82,17 +78,24 @@ export type PostSummary = {
   bookmarked: boolean;
 };
 
-/** Matches backend `PostDetailResponse` */
+export type PostOfferItemRequest = {
+  offerId?: number | null;
+  company?: string | null;
+  role?: string | null;
+  compensationText?: string | null;
+};
+
 export type PostDetailResponse = {
   id: number;
   type: PostType;
   title: string;
   body: string | null;
+  officeLocation: string | null;
   visibility: PostVisibility;
   status: PostStatus;
   authorUsername: string;
-  offerSnapshots: string | null;
-  sourceOfferIds: number[] | null;
+  comparisonId: number | null;
+  offers: Offer[];
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -103,10 +106,11 @@ export type PostRequest = {
   type: PostType;
   title: string;
   body?: string | null;
+  officeLocation?: string | null;
   visibility?: PostVisibility;
   status: PostStatus;
-  offerSnapshots?: string | null;
-  sourceOfferIds?: number[] | null;
+  comparisonId?: number | null;
+  offers?: PostOfferItemRequest[] | null;
 };
 
 export type CommentResponse = {
@@ -190,6 +194,58 @@ export async function fetchPublishedPosts(
   size = 20,
 ): Promise<PageResponse<PostSummary>> {
   return apiRequest<PageResponse<PostSummary>>(`/posts?page=${page}&size=${size}`);
+}
+
+export async function fetchRelatedPostsByLocation(text: string): Promise<PostSummary[]> {
+  const params = new URLSearchParams({ text });
+  return apiRequest<PostSummary[]>(`/posts/related-location?${params.toString()}`);
+}
+
+/** Same matching semantics as offers/comparisons “by office location”: any token can match (merged, deduped). */
+export async function fetchRelatedPostsByLocationTokens(tokens: string[]): Promise<PostSummary[]> {
+  const params = new URLSearchParams();
+  appendTokensParam(params, tokens);
+  const q = params.toString();
+  if (!q) return [];
+  return apiRequest<PostSummary[]>(`/posts/related-location?${q}`);
+}
+
+export type ResolvePlaceLinksResponse = {
+  postsByOfferId: Record<string, number>;
+  postsByComparisonId: Record<string, number>;
+};
+
+export async function resolvePlacePostLinks(body: {
+  offerIds: number[];
+  comparisonIds: number[];
+}): Promise<ResolvePlaceLinksResponse> {
+  return apiRequest<ResolvePlaceLinksResponse>("/posts/resolve-place-links", {
+    method: "POST",
+    body,
+  });
+}
+
+function appendTokensParam(params: URLSearchParams, tokens: string[]): void {
+  for (const t of tokens) {
+    const s = t.trim();
+    if (s.length > 0) params.append("tokens", s);
+  }
+}
+
+export async function fetchOffersByOfficeLocation(tokens: string[]): Promise<Offer[]> {
+  const params = new URLSearchParams();
+  appendTokensParam(params, tokens);
+  const q = params.toString();
+  if (!q) return [];
+  return apiRequest<Offer[]>(`/offers/by-office-location?${q}`);
+}
+
+export async function fetchComparisonsByOfficeLocation(tokens: string[]): Promise<Comparison[]> {
+  const params = new URLSearchParams();
+  appendTokensParam(params, tokens);
+  const q = params.toString();
+  if (!q) return [];
+  return apiRequest<Comparison[]>(`/comparisons/by-office-location?${q}`);
 }
 
 export async function fetchMyPosts(token: string): Promise<PostSummary[]> {

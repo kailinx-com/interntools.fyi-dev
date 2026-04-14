@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ChevronDown } from "lucide-react";
@@ -13,15 +14,44 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import {
   fetchPublishedPosts,
   fetchPost,
+  type Offer,
   type PostSummary,
   type PostDetailResponse,
 } from "@/lib/offers/api";
 
 const FREE_POST_LIMIT = 4;
 
-type FeedPost = PostSummary & { offerSnapshots?: string | null };
+type FeedPost = PostSummary & { offers?: Offer[] | null };
+
+export function parseFeedFilterParam(raw: string | null): "all" | "acceptance" | "comparison" {
+  if (raw === "acceptance" || raw === "comparison") return raw;
+  return "all";
+}
 
 export function OffersFeed() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filter = useMemo(
+    () => parseFeedFilterParam(searchParams.get("filter")),
+    [searchParams],
+  );
+
+  const setFilter = useCallback(
+    (next: string) => {
+      const normalized = parseFeedFilterParam(next === "all" ? null : next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (normalized === "all") {
+        params.delete("filter");
+      } else {
+        params.set("filter", normalized);
+      }
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const isLocked = !isAuthLoading && !isAuthenticated;
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -30,7 +60,6 @@ export function OffersFeed() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("all");
 
   const loadPage = useCallback(async (pageNum: number, append: boolean) => {
     if (append) setIsLoadingMore(true);
@@ -45,9 +74,13 @@ export function OffersFeed() {
         summaries.map(async (s): Promise<FeedPost> => {
           try {
             const detail: PostDetailResponse = await fetchPost(s.id);
-            return { ...s, offerSnapshots: detail.offerSnapshots };
+            return {
+              ...s,
+              offers: detail.offers,
+              officeLocation: detail.officeLocation ?? s.officeLocation,
+            };
           } catch {
-            return { ...s, offerSnapshots: null };
+            return { ...s, offers: null };
           }
         }),
       );
@@ -118,7 +151,7 @@ export function OffersFeed() {
               <Article
                 key={post.id}
                 post={post}
-                offerSnapshots={post.offerSnapshots}
+                offers={post.offers}
               />
             ))}
 
@@ -131,7 +164,7 @@ export function OffersFeed() {
               >
                 <div className="space-y-8 pointer-events-none">
                   {filteredPosts.slice(FREE_POST_LIMIT, FREE_POST_LIMIT + 2).map((post) => (
-                    <Article key={post.id} post={post} offerSnapshots={post.offerSnapshots} />
+                    <Article key={post.id} post={post} offers={post.offers} />
                   ))}
                 </div>
               </LockedPaycheckSection>

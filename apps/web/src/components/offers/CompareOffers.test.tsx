@@ -4,10 +4,22 @@ import { CompareOffers, parseMoney, fmtMoney, deriveMonthlyIncome } from "./Comp
 
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
+const mockSearchGet = jest.fn((_k: string) => null as string | null);
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => ({ get: () => null }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useSearchParams: () => ({
+    get: (k: string) => mockSearchGet(k),
+    toString: () => {
+      const offerId = mockSearchGet("offer");
+      const comparisonId = mockSearchGet("comparison");
+      const parts: string[] = [];
+      if (offerId) parts.push(`offerId=${encodeURIComponent(String(offerId))}`);
+      if (comparisonId) parts.push(`comparison=${encodeURIComponent(String(comparisonId))}`);
+      return parts.join("&");
+    },
+  }),
 }));
 
 jest.mock("next/link", () => ({
@@ -69,11 +81,15 @@ jest.mock("@/lib/offers", () => ({
 }));
 
 const mockFetchOffers = jest.fn().mockResolvedValue([]);
+const mockFetchOffer = jest.fn();
+const mockFetchComparison = jest.fn();
 const mockCreateOffer = jest.fn().mockResolvedValue({ id: 1, company: "Test" });
 const mockCreateComparison = jest.fn().mockResolvedValue({ id: 1, name: "Test" });
 
 jest.mock("@/lib/offers/api", () => ({
   fetchOffers: (...args: unknown[]) => mockFetchOffers(...args),
+  fetchOffer: (...args: unknown[]) => mockFetchOffer(...args),
+  fetchComparison: (...args: unknown[]) => mockFetchComparison(...args),
   createOffer: (...args: unknown[]) => mockCreateOffer(...args),
   createComparison: (...args: unknown[]) => mockCreateComparison(...args),
 }));
@@ -187,6 +203,9 @@ describe("CompareOffers", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchGet.mockImplementation(() => null);
+    mockFetchOffer.mockReset();
+    mockFetchComparison.mockReset();
     setAuth();
     mockStoredConfig = null;
     mockStoredPlannerData = { expenses: [] };
@@ -320,8 +339,8 @@ describe("CompareOffers", () => {
     it("computes negative leftover when expenses exceed income", async () => {
       render(<CompareOffers />);
       const allInputs = screen.getAllByPlaceholderText("$0/mo");
-      await user.type(allInputs[0], "$3000"); // net take-home
-      await user.type(allInputs[2], "$5000"); // expenses
+      await user.type(allInputs[0], "$3000");
+      await user.type(allInputs[2], "$5000");
 
       expect(screen.getByTestId("leftover-0")).toHaveTextContent("-$2,000/mo");
     });
@@ -329,8 +348,8 @@ describe("CompareOffers", () => {
     it("shows savings rate badge", async () => {
       render(<CompareOffers />);
       const allInputs = screen.getAllByPlaceholderText("$0/mo");
-      await user.type(allInputs[0], "$10000"); // net
-      await user.type(allInputs[2], "$4000"); // expenses
+      await user.type(allInputs[0], "$10000");
+      await user.type(allInputs[2], "$4000");
 
       expect(screen.getByTestId("rate-0")).toHaveTextContent("60% savings rate");
     });
@@ -338,11 +357,11 @@ describe("CompareOffers", () => {
     it("updates leftover in real-time as user types expenses", async () => {
       render(<CompareOffers />);
       const allInputs = screen.getAllByPlaceholderText("$0/mo");
-      await user.type(allInputs[0], "$10000"); // net
+      await user.type(allInputs[0], "$10000");
 
       expect(screen.getByTestId("leftover-0")).toHaveTextContent("$10,000/mo");
 
-      await user.type(allInputs[2], "$3000"); // now type expenses
+      await user.type(allInputs[2], "$3000");
       expect(screen.getByTestId("leftover-0")).toHaveTextContent("$7,000/mo");
     });
 
@@ -435,7 +454,14 @@ describe("CompareOffers", () => {
         await user.click(screen.getByRole("button", { name: /save/i }));
 
         await waitFor(() => expect(mockCreateComparison).toHaveBeenCalled());
-        expect(mockCreateOffer).not.toHaveBeenCalled();
+        expect(mockCreateOffer).toHaveBeenCalledTimes(2);
+        expect(mockCreateComparison).toHaveBeenCalledWith(
+          "test-token",
+          expect.objectContaining({
+            name: "Google vs Meta",
+            includedOfferIds: [1, 1],
+          }),
+        );
       });
 
       it("validates min 2 offers", async () => {
@@ -508,6 +534,138 @@ describe("CompareOffers", () => {
       it("hides selectors when no planners and no draft", () => {
         render(<CompareOffers />);
         expect(screen.queryByText(/planner document/i)).not.toBeInTheDocument();
+      });
+    });
+
+    describe("URL prefill (saved comparisons & offers)", () => {
+      function sampleOffer(id: number, company: string, title: string) {
+        return {
+          id,
+          company,
+          title,
+          employmentType: "internship" as const,
+          compensationType: "hourly" as const,
+          payAmount: 40,
+          hoursPerWeek: 40,
+          signOnBonus: null as number | null,
+          relocationAmount: null as number | null,
+          equityNotes: null as string | null,
+          officeLocation: "Remote",
+          daysInOffice: null as number | null,
+          notes: null as string | null,
+          favorite: null as boolean | null,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-02T00:00:00Z",
+        };
+      }
+
+      it("fetches comparison and prefills columns from included offers", async () => {
+        mockSearchGet.mockImplementation((k: string) =>
+          k === "comparison" ? "100" : null,
+        );
+        mockFetchComparison.mockResolvedValue({
+          id: 100,
+          name: "Saved",
+          includedOfferIds: [10, 11],
+          description: null,
+          isPublished: true,
+          computedMetrics: null,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-02T00:00:00Z",
+        });
+        mockFetchOffer
+          .mockResolvedValueOnce(sampleOffer(10, "Acme", "Eng"))
+          .mockResolvedValueOnce(sampleOffer(11, "Beta", "PM"));
+
+        setAuthUser();
+        render(<CompareOffers />);
+
+        await waitFor(() => {
+          expect(mockFetchComparison).toHaveBeenCalledWith("test-token", 100);
+        });
+        expect(mockFetchOffer).toHaveBeenCalledWith("test-token", 10);
+        expect(mockFetchOffer).toHaveBeenCalledWith("test-token", 11);
+
+        await waitFor(() => {
+          const companies = screen.getAllByPlaceholderText("Company");
+          expect(companies[0]).toHaveValue("Acme");
+          expect(companies[1]).toHaveValue("Beta");
+        });
+      });
+
+      it("prefills first column from ?offer=id", async () => {
+        mockSearchGet.mockImplementation((k: string) => (k === "offer" ? "5" : null));
+        mockFetchOffer.mockResolvedValue(sampleOffer(5, "SoloCo", "Intern"));
+
+        setAuthUser();
+        render(<CompareOffers />);
+
+        await waitFor(() => expect(mockFetchOffer).toHaveBeenCalledWith("test-token", 5));
+
+        await waitFor(() => {
+          expect(screen.getAllByPlaceholderText("Company")[0]).toHaveValue("SoloCo");
+        });
+      });
+
+      it("hydrates from computedMetrics when comparison has no offer ids", async () => {
+        mockSearchGet.mockImplementation((k: string) =>
+          k === "comparison" ? "200" : null,
+        );
+        mockFetchComparison.mockResolvedValue({
+          id: 200,
+          name: "Snapshot only",
+          includedOfferIds: [],
+          description: null,
+          isPublished: false,
+          computedMetrics: JSON.stringify([
+            {
+              company: "SnapA",
+              role: "Dev",
+              compensation: "$3,000/mo",
+              location: "PDX",
+            },
+          ]),
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-02T00:00:00Z",
+        });
+
+        setAuthUser();
+        render(<CompareOffers />);
+
+        await waitFor(() => {
+          expect(screen.getAllByPlaceholderText("Company")[0]).toHaveValue("SnapA");
+        });
+        expect(screen.getAllByPlaceholderText("Company")).toHaveLength(2);
+      });
+
+      it("uses offer query only when both offer and comparison are in the URL", async () => {
+        mockSearchGet.mockImplementation((k: string) => {
+          if (k === "offer") return "5";
+          if (k === "comparison") return "100";
+          return null;
+        });
+        mockFetchOffer.mockResolvedValue(sampleOffer(5, "OnlyOffer", "Role"));
+
+        setAuthUser();
+        render(<CompareOffers />);
+
+        await waitFor(() => expect(mockFetchOffer).toHaveBeenCalledWith("test-token", 5));
+        expect(mockFetchComparison).not.toHaveBeenCalled();
+      });
+
+      it("ends loading state when comparison fetch fails", async () => {
+        mockSearchGet.mockImplementation((k: string) =>
+          k === "comparison" ? "404" : null,
+        );
+        mockFetchComparison.mockRejectedValue(new Error("missing"));
+
+        setAuthUser();
+        render(<CompareOffers />);
+
+        await waitFor(() => expect(mockFetchComparison).toHaveBeenCalled());
+        await waitFor(() => {
+          expect(screen.queryByText(/loading saved comparison/i)).not.toBeInTheDocument();
+        });
       });
     });
   });

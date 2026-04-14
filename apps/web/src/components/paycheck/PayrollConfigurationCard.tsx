@@ -100,6 +100,7 @@ export function PayrollConfigurationCard({
             <Input
               id="hourly-rate"
               type="number"
+              placeholder="25"
               value={config.hourlyRate}
               onChange={(e) =>
                 onConfigChange("hourlyRate", parseNumber(e.target.value))
@@ -111,6 +112,7 @@ export function PayrollConfigurationCard({
             <Input
               id="stipend"
               type="number"
+              placeholder="0"
               value={config.stipendPerWeek}
               onChange={(e) =>
                 onConfigChange("stipendPerWeek", parseNumber(e.target.value))
@@ -125,6 +127,7 @@ export function PayrollConfigurationCard({
             <Input
               id="hours-per-day"
               type="number"
+              placeholder="8"
               value={config.workHoursPerDay}
               onChange={(e) =>
                 onConfigChange("workHoursPerDay", parseNumber(e.target.value))
@@ -136,6 +139,7 @@ export function PayrollConfigurationCard({
             <Input
               id="days-per-week"
               type="number"
+              placeholder="5"
               value={config.workDaysPerWeek}
               onChange={(e) =>
                 onConfigChange("workDaysPerWeek", parseNumber(e.target.value))
@@ -152,7 +156,7 @@ export function PayrollConfigurationCard({
               onValueChange={(value) => onConfigChange("state", value)}
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Select state" />
               </SelectTrigger>
               <SelectContent>
                 {states.map((state) => (
@@ -172,7 +176,7 @@ export function PayrollConfigurationCard({
               }
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Residency" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="nonresident">Non-Resident</SelectItem>
@@ -206,7 +210,7 @@ export function PayrollConfigurationCard({
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="Visa type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="F1">F-1 Student</SelectItem>
@@ -222,6 +226,7 @@ export function PayrollConfigurationCard({
                   id="arrival-year"
                   type="number"
                   step="1"
+                  placeholder="2024"
                   value={config.arrivalYear}
                   onChange={(e) =>
                     onConfigChange("arrivalYear", parseInteger(e.target.value))

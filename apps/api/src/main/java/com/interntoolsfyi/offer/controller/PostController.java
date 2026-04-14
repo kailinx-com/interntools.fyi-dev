@@ -3,6 +3,8 @@ package com.interntoolsfyi.offer.controller;
 import com.interntoolsfyi.offer.dto.PostDetailResponse;
 import com.interntoolsfyi.offer.dto.PostRequest;
 import com.interntoolsfyi.offer.dto.PostSummaryResponse;
+import com.interntoolsfyi.offer.dto.ResolvePlaceLinksRequest;
+import com.interntoolsfyi.offer.dto.ResolvePlaceLinksResponse;
 import com.interntoolsfyi.offer.service.PostService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -33,6 +35,24 @@ public class PostController {
   @GetMapping("/me")
   public List<PostSummaryResponse> listMyPosts(Authentication auth) {
     return postService.listMyPosts(auth);
+  }
+
+  @GetMapping("/related-location")
+  public List<PostSummaryResponse> listRelatedByLocation(
+      Authentication auth,
+      @RequestParam(value = "text", required = false) String text,
+      @RequestParam(value = "tokens", required = false) List<String> tokens,
+      @PageableDefault(size = 20) Pageable pageable) {
+    if (tokens != null && !tokens.isEmpty()) {
+      return postService.listPublishedMatchingLocationTokens(auth, tokens, pageable);
+    }
+    return postService.listPublishedMatchingLocation(auth, text == null ? "" : text, pageable);
+  }
+
+  @PostMapping(value = "/resolve-place-links", consumes = "application/json")
+  public ResolvePlaceLinksResponse resolvePlaceLinks(
+      @RequestBody ResolvePlaceLinksRequest request) {
+    return postService.resolvePlaceLinks(request);
   }
 
   @GetMapping("/{id}")

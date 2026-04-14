@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeftRight, BookOpen, Calculator, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BookOpen,
+  Calculator,
+  FileText,
+  Pencil,
+  Shield,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
@@ -23,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { updateProfile } from "@/lib/auth/api";
+import { ADMIN_DASHBOARD_PATH, isAdminRole } from "@/lib/auth/roleUi";
 import {
   deleteComparison,
   deleteOffer,
@@ -75,6 +84,7 @@ export default function MePage() {
   const { user, token, isAuthenticated, isLoading, logout, updateUser } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [dashboardActionError, setDashboardActionError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -103,6 +113,7 @@ export default function MePage() {
     if (!token) return;
     setIsLoadingData(true);
     setLoadError(null);
+    setDashboardActionError(null);
     try {
       const [allOffers, comparisons, posts, bookmarks, scenarios, planners] = await Promise.all([
         fetchOffers(token),
@@ -112,9 +123,7 @@ export default function MePage() {
         listCalculatorConfigs(token),
         listPlannerDocuments(token).catch(() => [] as SavedPlannerDocumentSummary[]),
       ]);
-      const comparisonOfferIds = new Set(comparisons.flatMap((c) => c.includedOfferIds));
-      const offers = allOffers.filter((o) => !comparisonOfferIds.has(o.id));
-      setData({ offers, comparisons, posts, bookmarks, scenarios, planners });
+      setData({ offers: allOffers, comparisons, posts, bookmarks, scenarios, planners });
     } catch (e) {
       setLoadError(getErrorMessage(e));
       setData(null);
@@ -135,6 +144,7 @@ export default function MePage() {
     if (!token || !window.confirm("Delete this item?")) return;
     const key = `${kind}-${id}`;
     setDeletingId(key);
+    setDashboardActionError(null);
     try {
       switch (kind) {
         case "offer":
@@ -157,7 +167,8 @@ export default function MePage() {
           break;
       }
       await loadDashboard();
-    } catch {
+    } catch (e) {
+      setDashboardActionError(getErrorMessage(e));
     } finally {
       setDeletingId(null);
     }
@@ -254,6 +265,14 @@ export default function MePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {isAdminRole(user.role) ? (
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={ADMIN_DASHBOARD_PATH}>
+                  <Shield className="size-3.5 mr-1.5" aria-hidden />
+                  Admin console
+                </Link>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" asChild>
               <Link href="/offers/compare">Compare offers</Link>
             </Button>
@@ -303,6 +322,7 @@ export default function MePage() {
                     <Label htmlFor="profile-username">Username</Label>
                     <Input
                       id="profile-username"
+                      placeholder="your-username"
                       value={profileUsername}
                       onChange={(e) => setProfileUsername(e.target.value)}
                     />
@@ -312,6 +332,7 @@ export default function MePage() {
                     <Input
                       id="profile-email"
                       type="email"
+                      placeholder="you@example.com"
                       value={profileEmail}
                       onChange={(e) => setProfileEmail(e.target.value)}
                     />
@@ -342,6 +363,7 @@ export default function MePage() {
                     <Input
                       id="new-password"
                       type="password"
+                      placeholder="At least 8 characters"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                     />
@@ -351,6 +373,7 @@ export default function MePage() {
                     <Input
                       id="confirm-password"
                       type="password"
+                      placeholder="Re-enter new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                     />
@@ -396,6 +419,12 @@ export default function MePage() {
           </Card>
         ) : null}
 
+        {dashboardActionError && !loadError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {dashboardActionError}
+          </p>
+        ) : null}
+
         {isLoadingData && !data && !loadError ? (
           <div className="flex justify-center py-12">
             <Spinner className="size-8" />
@@ -411,12 +440,11 @@ export default function MePage() {
 
         {data ? (
           <div className="space-y-8">
-            {/* Saved offers */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Saved offers</h2>
               {data.offers.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No offers yet. Use the API or future flows to add private offers, or go to{" "}
+                  No saved offers yet. Create and save offers from{" "}
                   <Link
                     href="/offers/compare"
                     className="text-primary underline-offset-4 hover:underline"
@@ -437,9 +465,14 @@ export default function MePage() {
                           {o.company} — {o.title}
                         </p>
                         <p className="text-muted-foreground text-sm">
-                          {employmentLabel[o.employmentType] ?? o.employmentType} ·{" "}
-                          {compensationLabel[o.compensationType] ?? o.compensationType} ·{" "}
-                          {o.officeLocation}
+                          {o.employmentType != null
+                            ? employmentLabel[o.employmentType] ?? o.employmentType
+                            : "—"}{" "}
+                          ·{" "}
+                          {o.compensationType != null
+                            ? compensationLabel[o.compensationType] ?? o.compensationType
+                            : "—"}{" "}
+                          · {o.officeLocation}
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -450,11 +483,11 @@ export default function MePage() {
                           variant="ghost"
                           size="icon"
                           className="size-8 text-muted-foreground"
-                          title="Open in Compare Offers"
+                          title="View saved offer"
                           asChild
                         >
-                          <Link href={`/offers/compare?offer=${o.id}`}>
-                            <ArrowLeftRight className="size-4" />
+                          <Link href={`/offers/saved/${o.id}`}>
+                            <FileText className="size-4" />
                           </Link>
                         </Button>
                         <Button
@@ -477,7 +510,6 @@ export default function MePage() {
               )}
             </section>
 
-            {/* Saved comparisons */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Saved comparisons</h2>
               {data.comparisons.length === 0 ? (
@@ -489,7 +521,7 @@ export default function MePage() {
                       key={c.id}
                       className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-medium">{c.name}</p>
                         {c.includedOfferIds.length > 0 ? (
                           <p className="text-muted-foreground text-sm">
@@ -497,7 +529,7 @@ export default function MePage() {
                           </p>
                         ) : null}
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                         <p className="text-muted-foreground shrink-0 text-xs mr-2">
                           {formatSavedItemTimestamp(c.updatedAt)}
                         </p>
@@ -505,10 +537,13 @@ export default function MePage() {
                           variant="ghost"
                           size="icon"
                           className="size-8 text-muted-foreground"
-                          title="Open in Compare Offers"
+                          title="Open comparison"
                           asChild
                         >
-                          <Link href={`/offers/compare?comparison=${c.id}`}>
+                          <Link
+                            href={`/offers/compare?comparison=${c.id}`}
+                            aria-label="Open comparison"
+                          >
                             <ArrowLeftRight className="size-4" />
                           </Link>
                         </Button>
@@ -518,6 +553,7 @@ export default function MePage() {
                           className="size-8 text-muted-foreground hover:text-destructive"
                           disabled={deletingId === `comparison-${c.id}`}
                           onClick={() => void handleDelete("comparison", c.id)}
+                          title="Delete comparison"
                         >
                           {deletingId === `comparison-${c.id}` ? (
                             <Spinner className="size-4" />
@@ -532,7 +568,6 @@ export default function MePage() {
               )}
             </section>
 
-            {/* My posts */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">My posts</h2>
               {data.posts.length === 0 ? (
@@ -566,6 +601,9 @@ export default function MePage() {
                             ? ` · ${formatSavedItemTimestamp(p.publishedAt)}`
                             : ""}
                         </p>
+                        {p.type !== "comparison" && p.officeLocation?.trim() ? (
+                          <p className="text-muted-foreground text-xs">{p.officeLocation}</p>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
@@ -599,7 +637,6 @@ export default function MePage() {
               )}
             </section>
 
-            {/* Bookmarked posts */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Bookmarked posts</h2>
               {data.bookmarks.length === 0 ? (
@@ -628,6 +665,9 @@ export default function MePage() {
                           {p.type} · @{p.authorUsername}
                           {p.publishedAt ? ` · ${formatSavedItemTimestamp(p.publishedAt)}` : ""}
                         </p>
+                        {p.type !== "comparison" && p.officeLocation?.trim() ? (
+                          <p className="text-muted-foreground text-xs">{p.officeLocation}</p>
+                        ) : null}
                       </div>
                       <Button
                         variant="ghost"
@@ -649,7 +689,6 @@ export default function MePage() {
               )}
             </section>
 
-            {/* Paycheck scenarios */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Paycheck scenarios</h2>
               {data.scenarios.length === 0 ? (
@@ -706,7 +745,6 @@ export default function MePage() {
               )}
             </section>
 
-            {/* Planner documents */}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Planner documents</h2>
               {data.planners.length === 0 ? (

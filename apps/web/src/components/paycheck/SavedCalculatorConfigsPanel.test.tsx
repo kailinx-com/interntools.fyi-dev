@@ -30,6 +30,22 @@ describe("SavedCalculatorConfigsPanel", () => {
     });
   });
 
+  it("shows list error in manage dialog when configs cannot be loaded", async () => {
+    mockListCalculatorConfigs.mockRejectedValueOnce(new Error("Network error"));
+    const user = userEvent.setup();
+    render(
+      <SavedCalculatorConfigsPanel
+        token="tok"
+        currentConfig={DEFAULT_PAYCHECK_CONFIG}
+        onLoad={jest.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /manage configs/i }));
+
+    expect(await screen.findByText("Network error")).toBeInTheDocument();
+  });
+
   it("saves config with entered name", async () => {
     const user = userEvent.setup();
     render(
