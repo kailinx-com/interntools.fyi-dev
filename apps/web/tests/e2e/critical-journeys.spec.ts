@@ -188,6 +188,8 @@ test.describe("critical journeys", () => {
 
     await page.goto("/me");
     await expect(page.getByRole("heading", { name: /my account/i })).toBeVisible({ timeout: 20_000 });
+    // Wait for the dashboard data to finish loading (heading only renders once Promise.all settles)
+    await expect(page.getByRole("heading", { name: /saved comparisons/i })).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole("link", { name: /open comparison/i }).click();
     await expect(page).toHaveURL(/\/offers\/compare\?comparison=\d+/, { timeout: 15_000 });
@@ -225,6 +227,8 @@ test.describe("critical journeys", () => {
 
     await page.goto("/me");
     await expect(page.getByRole("heading", { name: /my account/i })).toBeVisible({ timeout: 20_000 });
+    // Wait for the dashboard data to finish loading (heading only renders once Promise.all settles)
+    await expect(page.getByRole("heading", { name: /saved offers/i })).toBeVisible({ timeout: 30_000 });
     await page.getByTitle("View saved offer").first().click();
 
     await expect(page).toHaveURL(/\/offers\/saved\/\d+/, { timeout: 15_000 });
