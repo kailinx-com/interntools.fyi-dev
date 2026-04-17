@@ -8,6 +8,7 @@ import {
   getPlacePhotoMediaUrl,
   getPlacesApiKey,
   googleMapsSearchUrlForLocation,
+  isLegacyLocationDescriptionPath,
   matchTokensFromLocationDescription,
   normalizePlaceId,
   searchPlacesByText,
@@ -47,7 +48,6 @@ describe("places client helpers", () => {
     ]);
     expect(tokens).toContain("Seattle");
     expect(tokens).toContain("Washington");
-    // State abbreviations are intentionally omitted for admin_area_level_1 (see client.ts).
   });
 });
 
@@ -259,6 +259,16 @@ describe("getPlacePhotoMediaUrl", () => {
   });
 });
 
+describe("isLegacyLocationDescriptionPath", () => {
+  it("is true when the decoded path looks like a comma-separated description", () => {
+    expect(isLegacyLocationDescriptionPath("Seattle, WA, USA")).toBe(true);
+  });
+
+  it("is false for a typical Google place resource id segment", () => {
+    expect(isLegacyLocationDescriptionPath("ChIJ_e2e_test")).toBe(false);
+  });
+});
+
 describe("location description URL helpers (autocomplete text, no Details API)", () => {
   it("encodeLocationDescriptionForPath round-trips with decodePlaceIdFromPath", () => {
     const desc = "Seattle, WA, USA";
@@ -336,7 +346,6 @@ describe("matchTokensFromLocationDescription edge cases", () => {
   it("falls back to the whole description when no commas and length >= 2", () => {
     expect(matchTokensFromLocationDescription("ab")).toEqual(["ab"]);
     expect(matchTokensFromLocationDescription("Boston")).toEqual(["Boston"]);
-    // all comma-separated parts are too short (< 2 chars) → ordered stays empty → fallback push
     expect(matchTokensFromLocationDescription("a,b")).toEqual(["a,b"]);
   });
 

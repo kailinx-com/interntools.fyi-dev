@@ -8,7 +8,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import org.junit.jupiter.api.Test;
 
-/** Course checklist: ≥2 role kinds, single {@link User} table + {@link Role} enum. */
 class UserRoleModelContractTest {
 
   @Test

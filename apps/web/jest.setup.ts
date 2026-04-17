@@ -1,7 +1,6 @@
 import "@testing-library/jest-dom";
 import "whatwg-fetch";
 
-// Long forms with @testing-library/user-event default per-keystroke delay can exceed 5s.
 jest.setTimeout(15_000);
 
 class ResizeObserverMock {

@@ -55,12 +55,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
       @Param("text") String text,
       Pageable pageable);
 
-  /**
-   * Location-only variant used by the /posts/related-location endpoint.
-   * Only matches against officeLocation fields (post's own and linked offers').
-   * Does NOT search title, body, company, notes etc. to avoid false positives
-   * from short location tokens like state/country names.
-   */
+  
   @Query(
       """
       SELECT DISTINCT p FROM Post p

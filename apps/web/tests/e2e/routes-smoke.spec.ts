@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-/** Public routes render without 5xx (playwright webServer + API). */
 test.describe("public route smoke", () => {
   test("calculator and planner shells load", async ({ page }) => {
     await page.goto("/calculator");

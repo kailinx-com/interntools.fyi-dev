@@ -70,7 +70,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     User user = userOpt.get();
-    // Principal = current DB username so /me works after username changes; role from DB for @PreAuthorize.
     String role = user.getRole().name();
     List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 

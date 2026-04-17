@@ -37,7 +37,6 @@ public class AuthService {
 
     String hash = passwordEncoder.encode(registerRequest.password());
 
-    // Public registration is always STUDENT; role in the request body is ignored (no self-serve ADMIN).
     User user =
         new User(
             registerRequest.username(),

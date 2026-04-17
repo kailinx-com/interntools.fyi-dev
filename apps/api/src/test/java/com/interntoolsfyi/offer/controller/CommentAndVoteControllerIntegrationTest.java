@@ -576,7 +576,6 @@ class CommentAndVoteControllerIntegrationTest {
     }
   }
 
-
   private User createUser(String username) {
     return userRepository.saveAndFlush(
         new User(

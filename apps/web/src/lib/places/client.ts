@@ -22,14 +22,15 @@ export function decodePlaceIdFromPath(segment: string): string {
   }
 }
 
-/** URL segment for `/details/[placeId]` when the segment holds autocomplete description text (not a Places resource id). */
 export function encodeLocationDescriptionForPath(description: string): string {
   return encodeURIComponent(description.trim());
 }
 
-/**
- * Tokens for matching local posts to a location string from autocomplete (comma-separated address text).
- */
+/** True when the URL segment should use description-based UI (no Places Details GET). */
+export function isLegacyLocationDescriptionPath(decoded: string): boolean {
+  return decoded.includes(",");
+}
+
 export function matchTokensFromLocationDescription(description: string): string[] {
   const trimmed = description.trim();
   if (!trimmed) return [];
@@ -54,7 +55,6 @@ export function matchTokensFromLocationDescription(description: string): string[
   return ordered.slice(0, MAX_MATCH_TOKENS);
 }
 
-/** Open Google Maps search from a free-text location (no Places Details API). */
 export function googleMapsSearchUrlForLocation(description: string): string {
   const q = description.trim();
   if (!q) return "";
@@ -164,13 +164,9 @@ export function buildMatchTokensFromPlace(
       if (c.shortText && c.shortText !== c.longText) push(c.shortText);
     }
     if (hasType(types, "administrative_area_level_1")) {
-      // Skip the 2-letter abbreviation (e.g. "MA", "NY", "CA") — as a LIKE
-      // substring it matches unrelated city names (e.g. "NY" matches "Sunnyvale").
       push(c.longText);
     }
     if (hasType(types, "country")) {
-      // Skip the 2-letter country code (e.g. "US") — LIKE '%us%' matches
-      // every address ending in "USA" regardless of city.
       push(c.longText);
     }
   }
@@ -236,10 +232,6 @@ export async function fetchPlaceAutocompleteSuggestions(
   return out;
 }
 
-/**
- * App routes use {@link fetchPlaceAutocompleteSuggestions} plus description-text details only.
- * Kept for unit tests and any future use; not used by search/details pages.
- */
 export async function searchPlacesByText(text: string): Promise<PlaceSearchResult[]> {
   const key = getPlacesApiKey();
   if (!text.trim() || !key) return [];
@@ -266,10 +258,6 @@ export async function searchPlacesByText(text: string): Promise<PlaceSearchResul
   return places.map((p) => mapSearchPlace(p));
 }
 
-/**
- * Places API (New) GET place — not used by {@link PlaceDetailsClient}; details use description text from the URL.
- * Kept for unit tests.
- */
 export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
   const key = getPlacesApiKey();
   const id = normalizePlaceId(placeId);

@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 
 import { SubmitOfferForm } from "./SubmitOfferForm";
 
-
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockUseAuth = jest.fn();
@@ -50,7 +49,6 @@ jest.mock("next/link", () => {
   };
 });
 
-
 function authState(overrides = {}) {
   return {
     token: "test-token",
@@ -66,7 +64,6 @@ async function fillAcceptanceForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/role/i), "SWE Intern");
   await user.type(screen.getByLabelText(/compensation/i), "$9,000/mo");
 }
-
 
 describe("SubmitOfferForm", () => {
   beforeEach(() => {

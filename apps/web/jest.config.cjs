@@ -13,10 +13,8 @@ const customJestConfig = {
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
     "!src/**/*.d.ts",
-    // shadcn / third-party-style UI wrappers (no product logic; excluded per checklist)
     "!src/components/ui/**",
   ],
-  // `page.tsx` / `layout.tsx` / `hooks/**` included; only shadcn-style `ui/**` excluded (checklist §6).
   coverageThreshold: {
     global: {
       lines: 80,
@@ -24,7 +22,6 @@ const customJestConfig = {
       functions: 69,
       branches: 66,
     },
-    /** Heavy-feature gates (posts / offers / Places); tune per file as coverage improves */
     "**/lib/offers/postLocationDisplay.ts": {
       statements: 100,
       lines: 100,

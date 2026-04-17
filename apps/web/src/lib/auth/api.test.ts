@@ -6,7 +6,6 @@ import {
   registerUser,
   updateProfile,
 } from "./api";
-// Avoid `import type` so Jest+Babel configs without type-stripping can parse this file.
 import {
   AuthUser,
   LoginRequest,

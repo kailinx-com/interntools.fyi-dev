@@ -20,11 +20,11 @@ export type AdminUsersPage = {
 
 export type FetchAdminUsersParams = {
   page?: number;
-  /** Page size (default 10). */
+  
   size?: number;
   sortField?: string;
   sortDir?: "asc" | "desc";
-  /** Server-side filter on username, email, first/last name. */
+  
   search?: string;
 };
 

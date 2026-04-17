@@ -10,10 +10,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-/**
- * When {@code app.bootstrap-admin-email} is set to an existing user's email, promotes that user to
- * ADMIN on startup. Idempotent. Leave unset or empty to skip.
- */
 @Component
 @Order(100)
 class BootstrapAdminRunner implements CommandLineRunner {

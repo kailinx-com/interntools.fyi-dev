@@ -1,6 +1,4 @@
-/**
- * @jest-environment node
- */
+
 
 import { clearStoredToken, getStoredToken, setStoredToken } from "./storage";
 

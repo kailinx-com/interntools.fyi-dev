@@ -133,7 +133,6 @@ describe("/profile page", () => {
   it("shows follower and following counts after profile loads", async () => {
     render(<ProfilePage />);
 
-    // counts appear inside the profile header area after fetchOwnProfile resolves
     expect(await screen.findByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });

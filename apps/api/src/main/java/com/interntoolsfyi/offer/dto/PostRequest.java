@@ -13,7 +13,7 @@ public record PostRequest(
     String officeLocation,
     PostVisibility visibility,
     @NotNull(message = "status is required") PostStatus status,
-    /** When set, offers come from this comparison (must own it). */
+    
     Long comparisonId,
-    /** Required if {@code comparisonId} is null; ignored when comparisonId is set. */
+    
     List<PostOfferItemRequest> offers) {}

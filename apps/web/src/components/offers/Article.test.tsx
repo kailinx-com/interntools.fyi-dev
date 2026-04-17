@@ -179,7 +179,6 @@ describe("Article", () => {
 
   it("shows empty string for null publishedAt", () => {
     render(<Article post={makePost({ publishedAt: null, createdAt: null })} />);
-    // just checking it renders without throwing
     expect(screen.getByRole("article")).toBeInTheDocument();
   });
 
@@ -216,8 +215,6 @@ describe("Article", () => {
     await user.click(buttons[buttons.length - 1]);
 
     await waitFor(() => expect(mockBookmarkPost).toHaveBeenCalled());
-    // After the error, the optimistic toggle should have been reverted
-    // The bookmark icon should be back to unbookmarked (no fill-current class visible)
     const bookmarkBtn = buttons[buttons.length - 1];
     expect(bookmarkBtn).toBeInTheDocument();
   });
@@ -250,7 +247,6 @@ describe("Article", () => {
         ]}
       />,
     );
-    // The badge should not appear when formatOfferCompensationLine returns "—"
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
   });

@@ -201,7 +201,6 @@ export async function fetchRelatedPostsByLocation(text: string): Promise<PostSum
   return apiRequest<PostSummary[]>(`/posts/related-location?${params.toString()}`);
 }
 
-/** Same matching semantics as offers/comparisons “by office location”: any token can match (merged, deduped). */
 export async function fetchRelatedPostsByLocationTokens(tokens: string[]): Promise<PostSummary[]> {
   const params = new URLSearchParams();
   appendTokensParam(params, tokens);

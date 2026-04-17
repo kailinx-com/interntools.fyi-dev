@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 
 import { PostDetail } from "./PostDetail";
 
-
 const mockUseAuth = jest.fn();
 const mockFetchPost = jest.fn();
 const mockFetchComments = jest.fn();
@@ -39,7 +38,6 @@ jest.mock("next/link", () => {
     return <a href={href} {...props}>{children}</a>;
   };
 });
-
 
 function mockOffer(id: number, company: string, officeLocation: string | null = null) {
   return {
@@ -103,7 +101,6 @@ function otherAuth() {
     isLoading: false,
   };
 }
-
 
 describe("PostDetail", () => {
   beforeEach(() => {
@@ -375,8 +372,6 @@ describe("PostDetail", () => {
       expect(mockCastVote).toHaveBeenCalledWith("tok", 1, { selectedOfferIndex: 0 }),
     );
   });
-
-  // ── Profile links ─────────────────────────────────────────────────────────
 
   it("renders post author username as a link to /profile/{username}", async () => {
     mockUseAuth.mockReturnValue(authorAuth());

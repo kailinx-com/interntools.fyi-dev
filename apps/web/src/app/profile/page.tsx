@@ -233,7 +233,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Personal Info Card */}
+        {}
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
@@ -292,7 +292,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Name fields — no password required */}
+                {}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="edit-firstName">First name</Label>
@@ -316,7 +316,7 @@ export default function ProfilePage() {
 
                 <Separator />
 
-                {/* Username / Email — current password required */}
+                {}
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Account credentials
@@ -349,7 +349,7 @@ export default function ProfilePage() {
 
                 <Separator />
 
-                {/* Password change */}
+                {}
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Change password
@@ -445,7 +445,7 @@ export default function ProfilePage() {
 
         {profile && (
           <div className="space-y-8">
-            {/* Following */}
+            {}
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
                 <Users className="size-5" />
@@ -477,7 +477,7 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* Followers */}
+            {}
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
                 <UserCheck className="size-5" />
@@ -509,7 +509,7 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* My Posts */}
+            {}
             <section>
               <h2 className="mb-3 text-lg font-semibold">My posts</h2>
               {posts.length === 0 ? (
@@ -555,7 +555,7 @@ export default function ProfilePage() {
               )}
             </section>
 
-            {/* Bookmarks */}
+            {}
             <section>
               <h2 className="mb-3 text-lg font-semibold">Bookmarks</h2>
               {bookmarks.length === 0 ? (

@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.5</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
     <groupId>com.interntoolsfyi</groupId>
     <artifactId>api</artifactId>
@@ -114,13 +114,11 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- H2 for local run without Postgres; remove or set spring.datasource.url to use Postgres -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- Spring Boot 4: H2 console is a separate module (not bundled by default) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-h2console</artifactId>
@@ -161,12 +159,6 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
-                    <!--
-                      JaCoCo: `mvn -f apps/api/pom.xml verify` runs tests, `jacoco:report`, and `jacoco:check`.
-                      HTML report: apps/api/target/site/jacoco/index.html (full module; drill into packages for posts/offers).
-                      The check uses BUNDLE LINE+BRANCH at 1.0; narrowing gates to a subtree uses
-                      https://www.jacoco.org/jacoco/trunk/doc/check-mojo.html (includes/rules) if the team agrees.
-                    -->
                     <execution>
                         <id>check</id>
                         <phase>verify</phase>
@@ -178,7 +170,6 @@
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
-                                        <!-- Bundle LINE and BRANCH both at 1.0 (JaCoCo aggregate). -->
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>

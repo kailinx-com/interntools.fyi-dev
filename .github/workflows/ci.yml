@@ -1,8 +1,3 @@
-# Runs every automated test in the repo:
-# - apps/api: Maven Surefire — all `src/test/java` (unit + @SpringBootTest / MockMvc)
-# - apps/web: Jest — all `*.test.*` under src (e2e/ excluded in jest.config), with coverage + thresholds
-# - apps/web: Playwright — every file in tests/e2e/*.spec.ts on Chromium (full stack; API + Next via playwright.config webServer)
-# Cross-browser Playwright (Firefox / WebKit / mobile) is opt-in: E2E_FULL=1 pnpm run test:e2e locally or in a separate workflow.
 name: CI
 
 on:

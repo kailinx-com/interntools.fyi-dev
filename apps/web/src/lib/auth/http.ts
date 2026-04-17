@@ -32,7 +32,6 @@ export async function apiRequest<T>(
           message = String((data as { message: unknown }).message);
         }
       } catch {
-        // ignore malformed error bodies
       }
     }
     throw new Error(message);

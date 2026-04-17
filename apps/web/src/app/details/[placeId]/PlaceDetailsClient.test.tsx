@@ -4,6 +4,28 @@ import userEvent from "@testing-library/user-event";
 import { PlaceDetailsClient } from "./PlaceDetailsClient";
 import { googleMapsSearchUrlForLocation } from "@/lib/places/client";
 
+jest.mock("@/lib/places/client", () => {
+  const actual = jest.requireActual<typeof import("@/lib/places/client")>("@/lib/places/client");
+  return {
+    ...actual,
+    getPlaceDetails: jest.fn(),
+    searchPlacesByText: jest.fn(),
+  };
+});
+
+function placesClientMock() {
+  return jest.requireMock("@/lib/places/client") as {
+    getPlaceDetails: jest.Mock;
+    searchPlacesByText: jest.Mock;
+  };
+}
+
+const mockUseAuth = jest.fn();
+
+jest.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock("@/components/layout/PageShell", () => ({
   PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
@@ -42,6 +64,12 @@ jest.mock("next/link", () => {
 describe("PlaceDetailsClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    placesClientMock().getPlaceDetails.mockReset();
+    placesClientMock().searchPlacesByText.mockReset();
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
     localStorage.clear();
     mockUseParams.mockReturnValue({
       placeId: encodeURIComponent("Portland, OR, USA"),
@@ -80,6 +108,8 @@ describe("PlaceDetailsClient", () => {
     await waitFor(() => {
       expect(mockFetchRelatedPosts).toHaveBeenCalled();
     });
+
+    expect(placesClientMock().getPlaceDetails).not.toHaveBeenCalled();
 
     expect(screen.getByRole("heading", { name: "Portland" })).toBeInTheDocument();
     expect(screen.getAllByText("Portland, OR, USA").length).toBeGreaterThanOrEqual(1);
@@ -158,5 +188,50 @@ describe("PlaceDetailsClient", () => {
 
     await user.click(screen.getByRole("button", { name: /saved/i }));
     expect(localStorage.getItem("interntools.savedLocations")).toBe("[]");
+  });
+
+  it("does not offer save when not logged in", async () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+    });
+    render(<PlaceDetailsClient />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Portland" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /save location/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^sign in$/i })).toHaveAttribute("href", "/login");
+  });
+
+  it("fetches Google Places details and related posts when the URL encodes a place id", async () => {
+    mockUseParams.mockReturnValue({
+      placeId: encodeURIComponent("ChIJ_x"),
+    });
+    placesClientMock().getPlaceDetails.mockResolvedValue({
+      id: "ChIJ_x",
+      displayName: "Remote City",
+      formattedAddress: "1 Remote St, Remoteville, USA",
+      googleMapsUri: "https://maps.example/place",
+      firstPhotoName: null,
+      matchTokens: ["Remoteville", "USA"],
+    });
+
+    render(<PlaceDetailsClient />);
+
+    await waitFor(() => {
+      expect(placesClientMock().getPlaceDetails).toHaveBeenCalledWith("ChIJ_x");
+    });
+
+    expect(screen.getByRole("heading", { name: "Remote City" })).toBeInTheDocument();
+    expect(screen.getByText("1 Remote St, Remoteville, USA")).toBeInTheDocument();
+
+    const maps = screen.getByRole("link", { name: /open in google maps/i });
+    expect(maps).toHaveAttribute("href", "https://maps.example/place");
+
+    await waitFor(() => {
+      expect(mockFetchRelatedPosts).toHaveBeenCalledWith(["Remoteville", "USA"]);
+    });
   });
 });

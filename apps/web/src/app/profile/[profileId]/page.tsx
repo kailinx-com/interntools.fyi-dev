@@ -44,7 +44,6 @@ export default function PublicProfilePage() {
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
 
-  // Use resolved profile.id instead of the raw URL param so username slugs work correctly
   const isOwnProfile =
     isAuthenticated && user && profile != null && profile.id === Number(user.id);
 
@@ -81,7 +80,7 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     void loadProfile();
-  }, [loadProfile]); // loadProfile dep includes profileParam + isNumericId + token
+  }, [loadProfile]);
 
   async function handleFollow() {
     if (!token || !profile) return;
@@ -162,7 +161,7 @@ export default function PublicProfilePage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-4xl space-y-8 p-4 pb-16 md:p-8">
-        {/* Profile Header */}
+        {}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
@@ -226,7 +225,7 @@ export default function PublicProfilePage() {
           </div>
         </div>
 
-        {/* Following */}
+        {}
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
             <Users className="size-5" />
@@ -258,7 +257,7 @@ export default function PublicProfilePage() {
           )}
         </section>
 
-        {/* Followers */}
+        {}
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
             <UserCheck className="size-5" />
@@ -288,7 +287,7 @@ export default function PublicProfilePage() {
           )}
         </section>
 
-        {/* Posts */}
+        {}
         <section>
           <h2 className="mb-3 text-lg font-semibold">
             Posts

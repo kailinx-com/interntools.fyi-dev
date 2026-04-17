@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CompareOffers, parseMoney, fmtMoney, deriveMonthlyIncome } from "./CompareOffers";
 
-
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockSearchGet = jest.fn((_k: string) => null as string | null);
@@ -127,7 +126,6 @@ jest.mock("@/components/ui/spinner", () => ({
   Spinner: ({ className }: { className?: string }) => <div data-testid="spinner" className={className} />,
 }));
 
-
 function setAuth(overrides: Partial<AuthState> = {}) {
   authState = { token: null, isAuthenticated: false, isLoading: false, user: null, ...overrides };
 }
@@ -139,7 +137,6 @@ function setAuthUser() {
     user: { username: "testuser", email: "test@test.com", role: "STUDENT" },
   });
 }
-
 
 describe("parseMoney", () => {
   it("parses dollar strings", () => {
@@ -197,7 +194,6 @@ describe("deriveMonthlyIncome", () => {
   });
 });
 
-
 describe("CompareOffers", () => {
   const user = userEvent.setup();
 
@@ -210,7 +206,6 @@ describe("CompareOffers", () => {
     mockStoredConfig = null;
     mockStoredPlannerData = { expenses: [] };
   });
-
 
   describe("initial rendering", () => {
     it("renders the heading", () => {
@@ -249,7 +244,6 @@ describe("CompareOffers", () => {
     });
   });
 
-
   describe("add / remove offers", () => {
     it("adds a third offer", async () => {
       render(<CompareOffers />);
@@ -265,7 +259,6 @@ describe("CompareOffers", () => {
       expect(screen.getByText("Add Offer").closest("button")).toBeDisabled();
     });
   });
-
 
   describe("editable fields", () => {
     it("types company name", async () => {
@@ -303,7 +296,6 @@ describe("CompareOffers", () => {
       expect(inputs[0]).toHaveValue("$5000");
     });
   });
-
 
   describe("live Monthly Leftover computation", () => {
     it("computes leftover from net take-home minus expenses", async () => {
@@ -390,7 +382,6 @@ describe("CompareOffers", () => {
     });
   });
 
-
   describe("publish", () => {
     it("saves draft and navigates", async () => {
       render(<CompareOffers />);
@@ -412,7 +403,6 @@ describe("CompareOffers", () => {
     });
   });
 
-
   describe("unauthenticated", () => {
     beforeEach(() => setAuth());
 
@@ -428,7 +418,6 @@ describe("CompareOffers", () => {
       expect(mockListPlanners).not.toHaveBeenCalled();
     });
   });
-
 
   describe("authenticated", () => {
     beforeEach(() => setAuthUser());

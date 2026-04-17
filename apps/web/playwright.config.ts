@@ -1,6 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/** E2E_FULL=1 adds Firefox/WebKit/mobile on smoke+api specs; CI uses Chromium — see ci.yml */
 const fullBrowserMatrix =
   process.env.E2E_FULL === "1" || process.env.E2E_FULL === "true";
 
@@ -28,7 +27,6 @@ export default defineConfig({
       env: {
         ...process.env,
         NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8080/api",
-        // Non-empty so /search and /details call Google client-side; E2E mocks `places.googleapis.com`.
         NEXT_PUBLIC_GOOGLE_PLACES_API_KEY:
           process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ?? "e2e-places-key",
       },

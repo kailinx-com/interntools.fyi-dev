@@ -1,25 +1,79 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark, ChevronRight, Search } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { PageShell } from "@/components/layout/PageShell";
 import { LocationPicker } from "@/components/offers/LocationPicker";
 import { Button } from "@/components/ui/button";
 import {
   encodeLocationDescriptionForPath,
+  encodePlaceIdForPath,
   getPlacesApiKey,
+  searchPlacesByText,
+  type PlaceAutocompleteSuggestion,
 } from "@/lib/places/client";
 import { listSavedLocationDescriptions } from "@/lib/places/localPlaceBookmarks";
 
+const CRITERIA_DEBOUNCE_MS = 300;
+
+function criteriaFromSearchParams(searchParams: URLSearchParams): string {
+  return searchParams.get("criteria") ?? searchParams.get("q") ?? "";
+}
+
 export function SearchPageClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [query, setQuery] = useState("");
   const [savedLocations, setSavedLocations] = useState<string[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSavedSection =
+    !isAuthLoading && isAuthenticated && savedLocations.length > 0;
 
   const refreshSaved = useCallback(() => {
     setSavedLocations(listSavedLocationDescriptions());
+  }, []);
+
+  const replaceCriteriaInUrl = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        router.replace(pathname, { scroll: false });
+        return;
+      }
+      router.replace(
+        `${pathname}?${new URLSearchParams({ criteria: trimmed }).toString()}`,
+        { scroll: false },
+      );
+    },
+    [pathname, router],
+  );
+
+  const clearDebounceTimer = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }, []);
+
+  const searchParamsSig = searchParams.toString();
+
+  useEffect(() => {
+    setQuery(criteriaFromSearchParams(searchParams));
+  }, [searchParams, searchParamsSig]);
+
+  useEffect(() => {
+    function syncFromBrowserLocation() {
+      const params = new URLSearchParams(window.location.search);
+      setQuery(params.get("criteria") ?? params.get("q") ?? "");
+    }
+
+    window.addEventListener("popstate", syncFromBrowserLocation);
+    return () => window.removeEventListener("popstate", syncFromBrowserLocation);
   }, []);
 
   useEffect(() => {
@@ -31,15 +85,50 @@ export function SearchPageClient() {
     return () => window.removeEventListener("focus", onFocus);
   }, [refreshSaved]);
 
-  function goToDetails(description: string) {
+  useEffect(
+    () => () => {
+      clearDebounceTimer();
+    },
+    [clearDebounceTimer],
+  );
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    clearDebounceTimer();
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      replaceCriteriaInUrl(value);
+    }, CRITERIA_DEBOUNCE_MS);
+  }
+
+  async function goToDetailsFromQuery(description: string) {
+    clearDebounceTimer();
     const trimmed = description.trim();
     if (!trimmed) return;
-    router.push(`/details/${encodeLocationDescriptionForPath(trimmed)}`);
+    replaceCriteriaInUrl(trimmed);
+    if (!getPlacesApiKey()) {
+      router.push(`/details/${encodeLocationDescriptionForPath(trimmed)}`);
+      return;
+    }
+    const results = await searchPlacesByText(trimmed);
+    if (results[0]?.id) {
+      router.push(`/details/${encodePlaceIdForPath(results[0].id)}`);
+    } else {
+      router.push(`/details/${encodeLocationDescriptionForPath(trimmed)}`);
+    }
+  }
+
+  function onPickSuggestion(s: PlaceAutocompleteSuggestion) {
+    clearDebounceTimer();
+    replaceCriteriaInUrl(s.description);
+    const id = s.placeId.trim();
+    if (!id) return;
+    router.push(`/details/${encodePlaceIdForPath(id)}`);
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    goToDetails(query);
+    void goToDetailsFromQuery(query);
   }
 
   const showApiKeyHint = !getPlacesApiKey();
@@ -50,8 +139,8 @@ export function SearchPageClient() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Search by location</h1>
           <p className="text-muted-foreground text-sm">
-            Pick a suggestion from Google Places autocomplete, or type a location and press Search.
-            Details use the selected text only (no Places Details API).
+            Pick a suggestion or type a location and press Search. The details page loads place
+            information from Google Places (remote API) using the place ID in the URL when available.
           </p>
         </div>
 
@@ -64,10 +153,8 @@ export function SearchPageClient() {
               inputId="place-search"
               inputTestId="place-search-input"
               value={query}
-              onChange={setQuery}
-              onPickSuggestion={(s) => {
-                goToDetails(s.description);
-              }}
+              onChange={handleQueryChange}
+              onPickSuggestion={onPickSuggestion}
               placeholder="City, state, or region"
               containerClassName="w-full"
               className="h-11 w-full text-base"
@@ -86,11 +173,13 @@ export function SearchPageClient() {
           </p>
         ) : null}
 
-        <p className="text-sm text-muted-foreground text-center py-2">
-          Bookmarks for locations are stored in this browser only.
-        </p>
+        {!isAuthLoading && isAuthenticated ? (
+          <p className="text-sm text-muted-foreground text-center py-2">
+            Bookmarks for locations are stored in this browser only.
+          </p>
+        ) : null}
 
-        {savedLocations.length > 0 ? (
+        {showSavedSection ? (
           <section>
             <h2 className="mb-3 text-lg font-semibold flex items-center gap-2">
               <Bookmark className="size-4 shrink-0 text-muted-foreground" aria-hidden />

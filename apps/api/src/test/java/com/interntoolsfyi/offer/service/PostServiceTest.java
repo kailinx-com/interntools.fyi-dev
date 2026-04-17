@@ -930,7 +930,6 @@ class PostServiceTest {
     }
   }
 
-
   private static Authentication authenticatedUser(String username) {
     Authentication auth = org.mockito.Mockito.mock(Authentication.class);
     when(auth.isAuthenticated()).thenReturn(true);

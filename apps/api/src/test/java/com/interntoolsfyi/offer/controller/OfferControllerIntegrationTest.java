@@ -361,7 +361,6 @@ class OfferControllerIntegrationTest {
     }
   }
 
-
   private User createUser(String username) {
     return userRepository.saveAndFlush(
         new User(

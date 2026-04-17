@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-/** Spring API smoke (override with PLAYWRIGHT_API_BASE_URL). */
 const apiBase = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:8080/api";
 
 test.describe("API contract smoke", () => {

@@ -60,8 +60,6 @@ class UserProfileControllerIntegrationTest {
         MockMvcBuilders.webAppContextSetup(webApplicationContext).apply(springSecurity()).build();
   }
 
-  // ── GET /users/by-username/{username} ────────────────────────────────────
-
   @Test
   @DisplayName("GET /users/by-username/{username} returns public profile without email")
   void getPublicProfileByUsernameReturnsProfile() throws Exception {
@@ -99,8 +97,6 @@ class UserProfileControllerIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.followedByViewer").value(true));
   }
-
-  // ── GET /users/{id} ──────────────────────────────────────────────────────
 
   @Test
   @DisplayName("GET /users/{id} returns public profile without email")
@@ -152,8 +148,6 @@ class UserProfileControllerIntegrationTest {
         .andExpect(jsonPath("$.followedByViewer").value(false));
   }
 
-  // ── GET /users/me/profile ────────────────────────────────────────────────
-
   @Test
   @DisplayName("GET /users/me/profile returns own profile with email when authenticated")
   void getOwnProfileAuthenticated() throws Exception {
@@ -175,8 +169,6 @@ class UserProfileControllerIntegrationTest {
     mockMvc.perform(get("/users/me/profile")).andExpect(status().isUnauthorized());
   }
 
-  // ── GET /users/{id}/posts ────────────────────────────────────────────────
-
   @Test
   @DisplayName("GET /users/{id}/posts returns only published public posts by user")
   void getPostsByUser() throws Exception {
@@ -196,8 +188,6 @@ class UserProfileControllerIntegrationTest {
   void getPostsByUserNotFound() throws Exception {
     mockMvc.perform(get("/users/{id}/posts", 999999L)).andExpect(status().isNotFound());
   }
-
-  // ── GET /users/{id}/followers and /following ─────────────────────────────
 
   @Test
   @DisplayName("GET /users/{id}/followers returns follower stubs")
@@ -226,8 +216,6 @@ class UserProfileControllerIntegrationTest {
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].username").value("bob-fw"));
   }
-
-  // ── POST /users/{id}/follow ───────────────────────────────────────────────
 
   @Test
   @DisplayName("POST /users/{id}/follow creates follow relationship")
@@ -279,8 +267,6 @@ class UserProfileControllerIntegrationTest {
     mockMvc.perform(post("/users/{id}/follow", alice.getId())).andExpect(status().isUnauthorized());
   }
 
-  // ── DELETE /users/{id}/follow ─────────────────────────────────────────────
-
   @Test
   @DisplayName("DELETE /users/{id}/follow removes follow relationship")
   void unfollowUser() throws Exception {
@@ -306,8 +292,6 @@ class UserProfileControllerIntegrationTest {
         .andExpect(status().isUnauthorized());
   }
 
-  // ── PATCH /me with firstName/lastName ────────────────────────────────────
-
   @Test
   @DisplayName("PATCH /me with firstName/lastName updates profile without requiring current password")
   void patchMeUpdatesFirstLastName() throws Exception {
@@ -324,8 +308,6 @@ class UserProfileControllerIntegrationTest {
         .andExpect(jsonPath("$.firstName").value("Alicia"))
         .andExpect(jsonPath("$.lastName").value("Smithson"));
   }
-
-  // ── helpers ───────────────────────────────────────────────────────────────
 
   private User createUser(String username, String firstName, String lastName) {
     return userRepository.saveAndFlush(

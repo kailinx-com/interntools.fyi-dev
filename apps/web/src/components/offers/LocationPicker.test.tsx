@@ -1,12 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { LocationPicker } from "./LocationPicker";
 
-
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const originalApiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
-
 
 function fireChange(input: HTMLElement, value: string) {
   Object.getOwnPropertyDescriptor(
@@ -29,7 +27,6 @@ function placesResponse(places: { placeId: string; text: string }[]) {
     }),
   };
 }
-
 
 describe("LocationPicker", () => {
   beforeEach(() => {

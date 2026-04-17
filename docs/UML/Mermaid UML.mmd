@@ -1,0 +1,132 @@
+%% Edit here, then from repo: cd docs && npm run mermaid:erd — see ../domain-model-erd.md
+%%{init: {'theme': 'neutral', 'themeVariables': {'fontSize': '13px'}}}%%
+erDiagram
+  users {
+    bigint id PK
+    varchar username UK
+    varchar email UK
+    varchar role
+    timestamptz created_at
+  }
+
+  user_follow {
+    bigint id PK
+    bigint follower_id FK
+    bigint following_id FK
+    timestamptz created_at
+  }
+
+  offer {
+    bigint id PK
+    bigint user_id FK
+    varchar company
+    varchar title
+    varchar employment_type
+    varchar compensation_type
+    timestamptz created_at
+  }
+
+  comparison {
+    bigint id PK
+    bigint user_id FK
+    varchar name
+    boolean is_published
+    timestamptz created_at
+  }
+
+  comparison_included_offer_ids {
+    bigint comparison_id FK
+    bigint included_offer_ids
+    int included_offer_ids_order
+  }
+
+  post {
+    bigint id PK
+    bigint author_user_id FK
+    varchar type
+    varchar status
+    varchar visibility
+    bigint comparison_id FK
+    timestamptz published_at
+    timestamptz created_at
+  }
+
+  post_included_offer {
+    bigint id PK
+    bigint post_id FK
+    bigint offer_id FK
+    int sort_order
+  }
+
+  saved_post {
+    bigint id PK
+    bigint post_id FK
+    bigint user_id FK
+    timestamptz created_at
+  }
+
+  comment {
+    bigint id PK
+    bigint post_id FK
+    bigint user_id FK
+    bigint parent_id FK
+    text body
+    timestamptz created_at
+  }
+
+  community_preference_vote {
+    bigint id PK
+    bigint post_id FK
+    bigint user_id FK
+    int selected_offer_index
+    timestamptz created_at
+  }
+
+  paycheck_config {
+    bigint id PK
+    bigint user_id FK
+    varchar name
+    varchar state
+    date start_date
+    date end_date
+    timestamptz created_at
+  }
+
+  paycheck_saved_plans {
+    bigint id PK
+    bigint user_id FK
+    varchar name
+    timestamptz updated_at
+    text config_json
+    text planner_data_json
+  }
+
+  planner_document {
+    string id PK
+    bigint user_id FK
+    string name
+    json data
+    timestamptz created_at
+  }
+
+  users ||--o{ user_follow : follower
+  users ||--o{ user_follow : following
+  users ||--o{ offer : owns
+  users ||--o{ comparison : owns
+  users ||--o{ post : authors
+  users ||--o{ saved_post : bookmarks
+  users ||--o{ comment : writes
+  users ||--o{ community_preference_vote : votes
+  users ||--o{ paycheck_config : configures
+  users ||--o{ paycheck_saved_plans : saves
+  users ||--o{ planner_document : owns
+
+  comparison ||--o{ post : "nullable comparison_id"
+  post ||--o{ post_included_offer : contains
+  post ||--o{ saved_post : bookmark_via
+  post ||--o{ comment : has
+  post ||--o{ community_preference_vote : voted_on
+  post_included_offer }|--|| offer : references
+
+  comparison ||--o{ comparison_included_offer_ids : offer_ids
+  comment }o--o| comment : replies

@@ -108,8 +108,8 @@ describe("/profile/[profileId] page", () => {
 
     await screen.findByText("@bob");
     expect(screen.getByText(/member since 2023/i)).toBeInTheDocument();
-    expect(screen.getByText("5")).toBeInTheDocument(); // followerCount
-    expect(screen.getByText("3")).toBeInTheDocument(); // followingCount
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
   it("does not show follow button for anonymous users", async () => {
@@ -168,7 +168,6 @@ describe("/profile/[profileId] page", () => {
     await u.click(followBtn);
 
     await waitFor(() => expect(mockFollowUser).toHaveBeenCalledWith("tok", 42));
-    // follower count should jump from 5 → 6
     await waitFor(() => expect(screen.getByText("6")).toBeInTheDocument());
     expect(
       await screen.findByRole("button", { name: /unfollow/i }),
@@ -197,7 +196,6 @@ describe("/profile/[profileId] page", () => {
     await waitFor(() =>
       expect(mockUnfollowUser).toHaveBeenCalledWith("tok", 42),
     );
-    // count drops from 5 → 4
     await waitFor(() => expect(screen.getByText("4")).toBeInTheDocument());
     expect(
       await screen.findByRole("button", { name: /^follow$/i }),
@@ -306,8 +304,6 @@ describe("/profile/[profileId] page", () => {
     expect(mockFetchUserPosts).toHaveBeenCalledWith(42, "tok");
   });
 
-  // ── Username slug support ─────────────────────────────────────────────────
-
   it("renders profile when param is a username slug", async () => {
     renderPage("bob");
 
@@ -321,14 +317,12 @@ describe("/profile/[profileId] page", () => {
 
     await screen.findByText("@bob");
 
-    // sampleProfile.id = 42, so sub-resource calls should use 42, not "bob"
     expect(mockFetchUserPosts).toHaveBeenCalledWith(42, undefined);
     expect(mockFetchFollowers).toHaveBeenCalledWith(42);
     expect(mockFetchFollowing).toHaveBeenCalledWith(42);
   });
 
   it("shows 'Edit your profile' when authenticated user visits their own username slug", async () => {
-    // user id=42 matches sampleProfile.id=42
     mockUseAuth.mockReturnValue(
       createAuth({
         user: { id: 42, username: "bob" },

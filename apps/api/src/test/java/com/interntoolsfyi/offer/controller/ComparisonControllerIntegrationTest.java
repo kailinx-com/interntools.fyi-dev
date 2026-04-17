@@ -339,7 +339,6 @@ class ComparisonControllerIntegrationTest {
     }
   }
 
-
   private User createUser(String username) {
     return userRepository.saveAndFlush(
         new User(

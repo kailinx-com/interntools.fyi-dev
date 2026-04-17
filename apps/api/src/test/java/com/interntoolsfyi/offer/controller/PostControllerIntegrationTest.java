@@ -329,8 +329,6 @@ class PostControllerIntegrationTest {
     @DisplayName("merges and deduplicates posts when multiple tokens are provided")
     void mergesAndDedupesWhenMultipleTokensProvided() throws Exception {
       User author = createUser("multi-token-author");
-      // Each post has a distinct offer officeLocation — the location endpoint must
-      // match on officeLocation only, not on title/body/company/notes.
       Post onlyAlpha = createPublishedComparisonPost(author, "Alpha post title", "Alphacity, TX");
       Post onlyBeta  = createPublishedComparisonPost(author, "Beta post title",  "Betaville, TX");
 
@@ -529,7 +527,6 @@ class PostControllerIntegrationTest {
           .andExpect(status().isUnauthorized());
     }
   }
-
 
   private User createUser(String username) {
     return userRepository.saveAndFlush(

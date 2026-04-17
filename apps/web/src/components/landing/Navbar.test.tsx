@@ -94,7 +94,6 @@ jest.mock("@/components/ui/button", () => {
       children: React.ReactNode;
     }) => {
       if (asChild && React.isValidElement(children)) {
-        // Duplicate @types/react: omit ref on cloned child props.
         return React.cloneElement(children, props);
       }
 

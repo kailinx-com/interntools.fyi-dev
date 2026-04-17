@@ -5,10 +5,6 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * Single user table for every account. {@link Role} distinguishes student vs administrator; shared
- * columns apply to all roles (no separate {@code AdminUser} / {@code StudentUser} entities).
- */
 @Entity
 @Table(name = "users")
 public class User {
